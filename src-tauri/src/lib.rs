@@ -132,6 +132,9 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let conn = Connection::open(data_dir.join("stash.db"))?;
+            // Tolerate brief locks and use WAL so reads don't fail under contention.
+            let _ = conn.busy_timeout(std::time::Duration::from_millis(5000));
+            let _ = conn.pragma_update(None, "journal_mode", "WAL");
             db::init(&conn)?;
 
             let last_hash: LastHash = Arc::new(Mutex::new(None));
@@ -190,6 +193,7 @@ pub fn run() {
             commands::delete_todo_list,
             commands::list_todos,
             commands::add_todo,
+            commands::update_todo,
             commands::set_todo_done,
             commands::delete_todo,
             commands::clear_completed,

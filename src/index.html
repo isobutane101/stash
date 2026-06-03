@@ -98,6 +98,32 @@
     </div>
   </div>
 </div>
+<div class="modal" id="taskModal">
+  <div class="sheet">
+    <h3>Task</h3>
+    <input id="taskTitle" placeholder="Task" maxlength="200">
+    <div class="taskfield">
+      <label>Due date &amp; time</label>
+      <div class="duerow">
+        <input id="taskDue" type="datetime-local">
+        <button class="btn sm" id="taskClearDue">Clear</button>
+      </div>
+      <div class="quickdue">
+        <button class="btn sm" data-quick="0">Today</button>
+        <button class="btn sm" data-quick="1">Tomorrow</button>
+        <button class="btn sm" data-quick="7">Next week</button>
+      </div>
+    </div>
+    <div class="taskfield">
+      <label>Notes</label>
+      <textarea id="taskNotes" rows="4" placeholder="Add details&hellip;"></textarea>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn sm danger" id="taskDelete">Delete</button>
+      <button class="btn primary sm" id="taskSave">Save</button>
+    </div>
+  </div>
+</div>
 <script src="main.js"></script>
 </body>
 </html>

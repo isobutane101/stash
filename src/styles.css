@@ -185,27 +185,39 @@ html[data-theme="mono"]{
 }
 html[data-theme="mono"] body{background-image:radial-gradient(circle at 1px 1px, rgba(0,0,0,.045) 1px, transparent 0)}
 
-/* Party — bright plastic candy colors */
+/* Party — bright, readable, multi-color */
 html[data-theme="party"]{
-  --paper:#eef1fd; --paper2:#e4e9fc; --card:#ffffff; --card-edge:#dee4fb;
-  --ink:#211a52; --ink2:#5b4fa6; --ink3:#9189c9; --ink4:#bcb6e2;
-  --rule:#e3e2fb; --rule2:#cfcaf5;
-  --accent:#5b54ff; --accent2:#7d77ff; --accent-soft:#e6e4ff;
-  --gold:#ffc93c;
-  --shadow:0 2px 5px rgba(91,84,255,.10), 0 12px 30px -12px rgba(91,84,255,.32);
-  --shadow-hi:0 3px 9px rgba(91,84,255,.18), 0 22px 46px -16px rgba(91,84,255,.42);
+  --paper:#eef3ff; --paper2:#e6ecff; --card:#ffffff; --card-edge:#e1e7fb;
+  --ink:#171036; --ink2:#403764; --ink3:#6a6092; --ink4:#9b93c0;
+  --rule:#e7e7fb; --rule2:#d3cef2;
+  --accent:#4d5bff; --accent2:#6f7bff; --accent-soft:#e3e6ff;
+  --gold:#ff9f1c;
+  --shadow:0 2px 5px rgba(77,91,255,.12), 0 12px 30px -12px rgba(77,91,255,.30);
+  --shadow-hi:0 3px 10px rgba(77,91,255,.20), 0 22px 46px -16px rgba(77,91,255,.40);
 }
-html[data-theme="party"] body{background-image:radial-gradient(circle at 1px 1px, rgba(91,84,255,.07) 1px, transparent 0)}
-/* multi-color flair: blue (accent), green, yellow, pink */
-html[data-theme="party"] .brand h1 .mark{background:#22c993;box-shadow:0 0 0 3px #c7f6e4}
-html[data-theme="party"] .nav.active::before{background:#ff5db1}
-html[data-theme="party"] .tag-pill.on{background:#22c993;border-color:#22c993;color:#fff}
-html[data-theme="party"] .cfoot .tg{color:#0f9d58;background:#dcf6e7}
-html[data-theme="party"] .badge{background:#5b54ff}
-html[data-theme="party"] .head h2 em{color:#ff5db1}
-html[data-theme="party"] .card.pinned{border-color:#ffc93c}
-html[data-theme="party"] .searchwrap input:focus{border-bottom-color:#ff5db1}
-html[data-theme="party"] .todo.done .check{background:#22c993;border-color:#22c993}
+html[data-theme="party"] body{background:#eef3ff;background-image:linear-gradient(135deg,#e8f0ff 0%,#fbe9ff 48%,#fff6e6 100%)}
+/* colorful library icons */
+html[data-theme="party"] .nav .ic{opacity:1}
+html[data-theme="party"] .nav[data-view="all"] .ic{color:#4d5bff}
+html[data-theme="party"] .nav[data-view="pinned"] .ic{color:#ff9f1c}
+html[data-theme="party"] .nav[data-view="text"] .ic{color:#16c79a}
+html[data-theme="party"] .nav[data-view="link"] .ic{color:#ff4d97}
+html[data-theme="party"] .nav[data-view="image"] .ic{color:#9b5de5}
+html[data-theme="party"] .nav[data-view="file"] .ic{color:#ff6b3d}
+/* multi-hue accents across the UI */
+html[data-theme="party"] .brand h1 .mark{background:linear-gradient(135deg,#4d5bff,#16c79a);box-shadow:0 0 0 3px #d8f5ec}
+html[data-theme="party"] .nav.active::before{background:linear-gradient(180deg,#ff4d97,#9b5de5)}
+html[data-theme="party"] .tag-pill{color:#7a3df0;border-color:#e6dbff}
+html[data-theme="party"] .tag-pill.on{background:#9b5de5;border-color:#9b5de5;color:#fff}
+html[data-theme="party"] .cfoot .tg{color:#0e9f6e;background:#d6f6ea}
+html[data-theme="party"] .badge{background:#4d5bff}
+html[data-theme="party"] .head h2 em{color:#ff4d97}
+html[data-theme="party"] .card.pinned{border-color:#ff9f1c}
+html[data-theme="party"] .card.pinned::after{background:#ff9f1c;box-shadow:0 0 0 3px rgba(255,159,28,.22)}
+html[data-theme="party"] .searchwrap input:focus{border-bottom-color:#ff4d97}
+html[data-theme="party"] .btn.primary{background:#4d5bff;border-color:#4d5bff}
+html[data-theme="party"] .todo .check{border-color:#c9c2f2}
+html[data-theme="party"] .todo.done .check{background:#16c79a;border-color:#16c79a}
 
 /* theme switcher (sidebar) */
 .themes{display:flex;gap:6px;padding:2px 11px}
@@ -214,3 +226,27 @@ html[data-theme="party"] .todo.done .check{background:#22c993;border-color:#22c9
 .theme-opt.on{color:var(--ink);border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
 .theme-opt .sw{width:12px;height:12px;border-radius:4px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
 .sw.party{background:linear-gradient(135deg,#5b54ff 0%,#22c993 50%,#ffc93c 100%)}
+
+/* ---- tasks: due chips, subtasks, editor ---- */
+.tmeta{display:flex;align-items:center;gap:6px;flex:none}
+.tact{display:flex;gap:1px;flex:none;opacity:0;transition:opacity .14s}
+.todo:hover .tact{opacity:1}
+.duechip{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:20px;background:var(--paper2);color:var(--ink2);cursor:pointer;white-space:nowrap;border:1px solid var(--card-edge)}
+.duechip.today{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-weight:600}
+.duechip.over{background:#fce8e6;color:#c0392b;border-color:transparent;font-weight:600}
+.noteind{font-family:var(--mono);font-size:13px;color:var(--ink4);cursor:pointer;line-height:1}
+.todo.sub{margin-left:34px;padding:9px 13px;background:transparent;border-style:dashed;box-shadow:none}
+.todo.sub .ttext{font-family:var(--sans);font-size:13.5px}
+.todo.sub .check{width:19px;height:19px}
+.subadd{margin:-3px 0 11px 34px}
+.subadd input{width:100%;background:transparent;border:none;border-bottom:1px solid transparent;padding:5px 2px;font-family:var(--sans);font-size:13px;color:var(--ink2)}
+.subadd input:focus{outline:none;border-bottom-color:var(--rule2)}
+.subadd input::placeholder{color:var(--ink4)}
+.taskfield{margin:15px 0}
+.taskfield label{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink4);margin-bottom:7px}
+.duerow{display:flex;gap:8px}
+.duerow input{flex:1}
+.quickdue{display:flex;gap:6px;margin-top:8px}
+.sheet input[type="datetime-local"]{font-family:var(--sans);accent-color:var(--accent)}
+#taskNotes{width:100%;background:var(--paper);border:1px solid var(--card-edge);color:var(--ink);border-radius:9px;padding:10px 12px;font-family:var(--sans);font-size:13.5px;resize:vertical;line-height:1.5}
+#taskNotes:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}

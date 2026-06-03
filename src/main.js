@@ -178,11 +178,23 @@ nl.addEventListener('keydown',async e=>{if(e.key==='Enter'){const n=nl.value.tri
 // Add task (to-do panel input + button).
 const ti=document.getElementById('todoInput');
 async function submitTodo(){const t=ti.value.trim();if(!t||!activeList)return;ti.value='';
-  try{ await invoke('add_todo',{listId:activeList,text:t}); }catch(e){ console.error(e); } refreshTodo();}
+  try{ await invoke('add_todo',{listId:activeList,text:t,due:null,parentId:null}); }catch(e){ console.error(e); } refreshTodo();}
 ti.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submitTodo();}});
 document.getElementById('todoAddBtn').onclick=submitTodo;
 document.getElementById('todoClearBtn').onclick=async()=>{if(!activeList)return;
   try{ await invoke('clear_completed',{listId:activeList}); }catch(e){ console.error(e); } refreshTodo();};
+
+// task editor wiring
+const taskModal=document.getElementById('taskModal');
+document.getElementById('taskSave').onclick=saveTask;
+document.getElementById('taskDue').addEventListener('keydown',e=>{if(e.key==='Enter')saveTask();});
+document.getElementById('taskTitle').addEventListener('keydown',e=>{if(e.key==='Enter')saveTask();});
+document.getElementById('taskClearDue').onclick=()=>quickDue(null);
+document.querySelectorAll('#taskModal [data-quick]').forEach(b=>b.onclick=()=>quickDue(parseInt(b.dataset.quick)));
+document.getElementById('taskDelete').onclick=async()=>{ if(!editTaskId)return;
+  try{ await invoke('delete_todo',{id:editTaskId}); }catch(e){ console.error(e); }
+  taskModal.classList.remove('show');editTaskId=null;refreshTodo(); };
+taskModal.onclick=e=>{ if(e.target===taskModal) taskModal.classList.remove('show'); };
 
 function visible(){const searching=!!q;return items.filter(it=>{
   if(searching){ // search spans the whole collection, ignoring the active view/folder/tag
@@ -281,6 +293,24 @@ async function refreshTodo(){
   try{ todos=activeList?await invoke('list_todos',{listId:activeList}):[]; }catch(e){ console.error(e); todos=[]; }
   renderTodo();
 }
+// ---- due-date helpers ----
+function startOfDay(ts){const d=new Date(ts);d.setHours(0,0,0,0);return d.getTime();}
+function fmtDue(due){
+  if(!due) return null;
+  const d=new Date(due), today=startOfDay(Date.now()), day=startOfDay(due);
+  const diff=Math.round((day-today)/86400000);
+  const hasTime=!(d.getHours()===0&&d.getMinutes()===0);
+  let label;
+  if(diff===0) label='Today'; else if(diff===1) label='Tomorrow'; else if(diff===-1) label='Yesterday';
+  else if(diff>1&&diff<7) label=d.toLocaleDateString(undefined,{weekday:'short'});
+  else label=d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  if(hasTime) label+=', '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+  return {label, overdue:day<today, today:diff===0};
+}
+function toLocalInput(ts){const d=new Date(ts),p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
+function fromLocalInput(v){ if(!v) return null; const ms=new Date(v).getTime(); return isNaN(ms)?null:ms; }
+
 function renderTodo(){
   applyMode();renderSidebar();
   const list=lists.find(l=>l.id===activeList);
@@ -289,17 +319,61 @@ function renderTodo(){
   const done=todos.filter(t=>t.done).length;
   document.getElementById('count').textContent=todos.length?(done+' / '+todos.length+' done'):'empty';
   const box=document.getElementById('todoItems');box.innerHTML='';
-  if(!todos.length){box.innerHTML='<div class="todoEmpty"><div class="big">No tasks yet</div><p>Add your first task above.</p></div>';return;}
-  todos.forEach(t=>box.appendChild(todoRow(t)));
+  const tops=todos.filter(t=>!t.parent_id);
+  if(!tops.length){box.innerHTML='<div class="todoEmpty"><div class="big">No tasks yet</div><p>Add your first task above.</p></div>';return;}
+  tops.forEach(t=>{
+    box.appendChild(todoRow(t,false));
+    todos.filter(s=>s.parent_id===t.id).forEach(s=>box.appendChild(todoRow(s,true)));
+    box.appendChild(addSubRow(t.id));
+  });
 }
-function todoRow(t){
-  const r=document.createElement('div');r.className='todo'+(t.done?' done':'');
+function todoRow(t,isSub){
+  const r=document.createElement('div');r.className='todo'+(t.done?' done':'')+(isSub?' sub':'');
   const chk=document.createElement('button');chk.className='check';chk.innerHTML=t.done?'✓':'';
   chk.onclick=async()=>{ try{ await invoke('set_todo_done',{id:t.id,done:!t.done}); }catch(e){ console.error(e); } refreshTodo(); };
-  const txt=document.createElement('div');txt.className='ttext';txt.textContent=t.text;
-  const del=document.createElement('button');del.className='ibtn danger tdel';del.textContent='✕';del.title='Delete task';
+  const txt=document.createElement('div');txt.className='ttext';txt.textContent=t.text;txt.style.cursor='pointer';
+  txt.onclick=()=>openTask(t.id);
+  const meta=document.createElement('div');meta.className='tmeta';
+  const d=fmtDue(t.due);
+  if(d){const chip=document.createElement('span');chip.className='duechip'+(d.overdue&&!t.done?' over':'')+(d.today?' today':'');
+    chip.textContent=d.label;chip.onclick=()=>openTask(t.id);meta.appendChild(chip);}
+  if(t.notes){const n=document.createElement('span');n.className='noteind';n.textContent='≡';n.title='Has notes';n.onclick=()=>openTask(t.id);meta.appendChild(n);}
+  const act=document.createElement('div');act.className='tact';
+  const edit=document.createElement('button');edit.className='ibtn';edit.textContent='✎';edit.title='Edit (date, notes)';edit.onclick=()=>openTask(t.id);
+  const del=document.createElement('button');del.className='ibtn danger';del.textContent='✕';del.title='Delete';
   del.onclick=async()=>{ try{ await invoke('delete_todo',{id:t.id}); }catch(e){ console.error(e); } refreshTodo(); };
-  r.append(chk,txt,del);return r;
+  act.append(edit,del);
+  r.append(chk,txt,meta,act);return r;
+}
+function addSubRow(parentId){
+  const r=document.createElement('div');r.className='subadd';
+  const inp=document.createElement('input');inp.placeholder='+ Subtask';inp.maxLength=200;
+  inp.addEventListener('keydown',async e=>{if(e.key==='Enter'){const v=inp.value.trim();if(!v)return;inp.value='';
+    try{ await invoke('add_todo',{listId:activeList,text:v,due:null,parentId}); }catch(err){ console.error(err); } refreshTodo(); }});
+  r.appendChild(inp);return r;
+}
+
+// ---- task editor (title, due date/time, notes) ----
+let editTaskId=null;
+function openTask(id){
+  const t=todos.find(x=>x.id===id); if(!t) return; editTaskId=id;
+  document.getElementById('taskTitle').value=t.text;
+  document.getElementById('taskDue').value=t.due?toLocalInput(t.due):'';
+  document.getElementById('taskNotes').value=t.notes||'';
+  taskModal.classList.add('show');setTimeout(()=>document.getElementById('taskTitle').focus(),50);
+}
+async function saveTask(){
+  if(!editTaskId) return;
+  const text=document.getElementById('taskTitle').value.trim()||'Untitled';
+  const due=fromLocalInput(document.getElementById('taskDue').value);
+  const notes=document.getElementById('taskNotes').value.trim()||null;
+  try{ await invoke('update_todo',{id:editTaskId,text,due,notes}); }catch(e){ console.error(e); }
+  taskModal.classList.remove('show');editTaskId=null;refreshTodo();
+}
+function quickDue(deltaDays){
+  const d=new Date();d.setHours(17,0,0,0);
+  if(deltaDays!=null)d.setDate(d.getDate()+deltaDays);
+  document.getElementById('taskDue').value=deltaDays==null?'':toLocalInput(d.getTime());
 }
 
 function card(it){
@@ -345,7 +419,7 @@ window.addEventListener('paste',e=>{
   const txt=(e.clipboardData||{}).getData?(e.clipboardData).getData('text'):'';if(txt)addText(txt);});
 window.addEventListener('keydown',e=>{const a=document.activeElement;
   if(e.key==='/'&&a.tagName!=='INPUT'&&a.tagName!=='TEXTAREA'){e.preventDefault();document.getElementById('search').focus();}
-  if(e.key==='Escape'){tagModal.classList.remove('show');closeLight();}});
+  if(e.key==='Escape'){tagModal.classList.remove('show');closeLight();taskModal.classList.remove('show');}});
 
 // --- background clipboard auto-capture: the Rust watcher emits, we persist + re-render ---
 listen('clipboard-captured', async (e)=>{

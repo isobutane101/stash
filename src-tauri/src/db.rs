@@ -55,16 +55,28 @@ pub fn init(conn: &Connection) -> Result<()> {
             created INTEGER NOT NULL
         );
         CREATE TABLE IF NOT EXISTS todos (
-            id       TEXT PRIMARY KEY,
-            list_id  TEXT NOT NULL,
-            text     TEXT NOT NULL,
-            done     INTEGER NOT NULL DEFAULT 0,
-            created  INTEGER NOT NULL
+            id        TEXT PRIMARY KEY,
+            list_id   TEXT NOT NULL,
+            text      TEXT NOT NULL,
+            done      INTEGER NOT NULL DEFAULT 0,
+            due       INTEGER,
+            notes     TEXT,
+            parent_id TEXT,
+            created   INTEGER NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_items_created ON items(created DESC);
         CREATE INDEX IF NOT EXISTS idx_items_kind    ON items(kind);
         CREATE INDEX IF NOT EXISTS idx_todos_list    ON todos(list_id);",
-    )
+    )?;
+    // Migrate existing DBs: add the newer todo columns if they're missing.
+    for stmt in [
+        "ALTER TABLE todos ADD COLUMN due INTEGER",
+        "ALTER TABLE todos ADD COLUMN notes TEXT",
+        "ALTER TABLE todos ADD COLUMN parent_id TEXT",
+    ] {
+        let _ = conn.execute(stmt, []); // ignores "duplicate column name"
+    }
+    Ok(())
 }
 
 /// Move an item into a folder (`Some(name)`) or out of any folder (`None`).
@@ -192,6 +204,9 @@ pub struct Todo {
     pub list_id: String,
     pub text: String,
     pub done: bool,
+    pub due: Option<i64>,
+    pub notes: Option<String>,
+    pub parent_id: Option<String>,
     pub ts: i64,
 }
 
@@ -233,9 +248,11 @@ pub fn delete_todo_list(conn: &Connection, id: &str) -> Result<()> {
 }
 
 pub fn list_todos(conn: &Connection, list_id: &str) -> Result<Vec<Todo>> {
+    // Incomplete first; within that, soonest due first (no-due last); then creation order.
     let mut stmt = conn.prepare(
-        "SELECT id, list_id, text, done, created FROM todos
-         WHERE list_id = ?1 ORDER BY done ASC, created ASC",
+        "SELECT id, list_id, text, done, due, notes, parent_id, created FROM todos
+         WHERE list_id = ?1
+         ORDER BY done ASC, (due IS NULL) ASC, due ASC, created ASC",
     )?;
     let rows = stmt.query_map(params![list_id], |r| {
         Ok(Todo {
@@ -243,27 +260,56 @@ pub fn list_todos(conn: &Connection, list_id: &str) -> Result<Vec<Todo>> {
             list_id: r.get(1)?,
             text: r.get(2)?,
             done: r.get::<_, i64>(3)? != 0,
-            ts: r.get(4)?,
+            due: r.get(4)?,
+            notes: r.get(5)?,
+            parent_id: r.get(6)?,
+            ts: r.get(7)?,
         })
     })?;
     rows.collect()
 }
 
-pub fn add_todo(conn: &Connection, id: &str, list_id: &str, text: &str, ts: i64) -> Result<()> {
+pub fn add_todo(
+    conn: &Connection,
+    id: &str,
+    list_id: &str,
+    text: &str,
+    due: Option<i64>,
+    parent_id: Option<&str>,
+    ts: i64,
+) -> Result<()> {
     conn.execute(
-        "INSERT INTO todos (id, list_id, text, done, created) VALUES (?1, ?2, ?3, 0, ?4)",
-        params![id, list_id, text, ts],
+        "INSERT INTO todos (id, list_id, text, done, due, parent_id, created)
+         VALUES (?1, ?2, ?3, 0, ?4, ?5, ?6)",
+        params![id, list_id, text, due, parent_id, ts],
+    )?;
+    Ok(())
+}
+
+/// Update an existing task's title, due date, and notes (each may be cleared with NULL).
+pub fn update_todo(
+    conn: &Connection,
+    id: &str,
+    text: &str,
+    due: Option<i64>,
+    notes: Option<&str>,
+) -> Result<()> {
+    conn.execute(
+        "UPDATE todos SET text = ?1, due = ?2, notes = ?3 WHERE id = ?4",
+        params![text, due, notes, id],
     )?;
     Ok(())
 }
 
 pub fn set_todo_done(conn: &Connection, id: &str, done: bool) -> Result<()> {
     conn.execute("UPDATE todos SET done = ?1 WHERE id = ?2", params![done as i64, id])?;
+    // Checking off a parent checks off its subtasks too.
+    conn.execute("UPDATE todos SET done = ?1 WHERE parent_id = ?2", params![done as i64, id])?;
     Ok(())
 }
 
 pub fn delete_todo(conn: &Connection, id: &str) -> Result<()> {
-    conn.execute("DELETE FROM todos WHERE id = ?1", params![id])?;
+    conn.execute("DELETE FROM todos WHERE id = ?1 OR parent_id = ?1", params![id])?;
     Ok(())
 }
 

@@ -404,11 +404,29 @@ pub fn list_todos(state: State<AppState>, list_id: String) -> Result<Vec<db::Tod
 }
 
 #[tauri::command]
-pub fn add_todo(state: State<AppState>, list_id: String, text: String) -> Result<(), String> {
+pub fn add_todo(
+    state: State<AppState>,
+    list_id: String,
+    text: String,
+    due: Option<i64>,
+    parent_id: Option<String>,
+) -> Result<(), String> {
     let id = uuid::Uuid::new_v4().to_string();
     let ts = chrono::Utc::now().timestamp_millis();
     let conn = state.db.lock().unwrap();
-    db::add_todo(&conn, &id, &list_id, &text, ts).map_err(|e| e.to_string())
+    db::add_todo(&conn, &id, &list_id, &text, due, parent_id.as_deref(), ts).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_todo(
+    state: State<AppState>,
+    id: String,
+    text: String,
+    due: Option<i64>,
+    notes: Option<String>,
+) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    db::update_todo(&conn, &id, &text, due, notes.as_deref()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
