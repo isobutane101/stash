@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stash</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Spline+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><h1><span class="mark"></span>Stash</h1><p>Clipboard &middot; Notebook</p></div>
+    <div class="section">
+      <div class="label">Library</div>
+      <div class="nav active" data-view="all"><span class="ic">&#10070;</span><span class="nm">All items</span><span class="ct" id="ct-all">0</span></div>
+      <div class="nav" data-view="pinned"><span class="ic">&#9733;</span><span class="nm">Pinned</span><span class="ct" id="ct-pin">0</span></div>
+      <div class="nav" data-view="text"><span class="ic">&para;</span><span class="nm">Notes</span><span class="ct" id="ct-text">0</span></div>
+      <div class="nav" data-view="link"><span class="ic">&#8599;</span><span class="nm">Links</span><span class="ct" id="ct-link">0</span></div>
+      <div class="nav" data-view="image"><span class="ic">&#9635;</span><span class="nm">Images</span><span class="ct" id="ct-image">0</span></div>
+      <div class="nav" data-view="file"><span class="ic">&#9113;</span><span class="nm">Files</span><span class="ct" id="ct-file">0</span></div>
+    </div>
+    <div class="section">
+      <div class="label">Folders</div>
+      <div id="folders"></div>
+      <div class="newfolder"><input id="newfolder" placeholder="New folder&hellip;" maxlength="24"></div>
+    </div>
+    <div class="section">
+      <div class="label">Tags</div>
+      <div class="tags" id="tagwrap"></div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="head">
+      <div class="eyebrow" id="eyebrow">The collection</div>
+      <div class="row"><h2 id="title">All items</h2><div class="count" id="count">0 items</div></div>
+      <div class="rule"></div>
+      <div class="searchwrap"><span class="mag">&#9906;</span><input id="search" placeholder="Search text, links, files, tags&hellip;"></div>
+    </div>
+    <div class="capture" id="capture">
+      <textarea id="capInput" rows="1" placeholder="Paste anything (&#8984;V), jot a note, or drop a file&hellip;"></textarea>
+      <div class="caprow">
+        <div class="hint"><span class="kbd">&#8984;V</span> paste &nbsp;&middot;&nbsp; <span class="kbd">&#8984;&crarr;</span> save &nbsp;&middot;&nbsp; drag files in</div>
+        <div class="spacer"></div>
+        <button class="btn sm" id="fileBtn">Attach file</button>
+        <button class="btn primary sm" id="saveBtn">Save</button>
+        <input type="file" id="fileInput" multiple hidden>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="empty" style="display:none">
+        <div class="ill">&#10070;</div><div class="big">Nothing stashed yet</div>
+        <p>Paste, type, or drop something above to begin your collection.</p>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"><span class="dot"></span><span id="toastmsg">Saved</span></div>
+<div class="modal" id="tagModal">
+  <div class="sheet">
+    <h3>Tags</h3>
+    <div class="sub">Press Enter to add. Click a tag to remove it.</div>
+    <div class="chips" id="modalChips"></div>
+    <input id="tagInput" placeholder="Add a tag&hellip;" maxlength="20">
+    <div class="row"><button class="btn primary sm" id="tagClose">Done</button></div>
+  </div>
+</div>
+<script src="main.js"></script>
+</body>
+</html>
