@@ -77,9 +77,9 @@ body{
 .btn.primary:hover{background:var(--accent2)}
 .btn.sm{padding:6px 11px;font-size:12px}
 .scroll{flex:1;overflow-y:auto;padding:24px 40px 80px}
-.grid{column-gap:18px;column-width:264px}
-@media(min-width:1500px){.grid{column-width:300px}}
-.card{break-inside:avoid;margin:0 0 18px;background:var(--card);border:1px solid var(--card-edge);border-radius:13px;overflow:hidden;box-shadow:var(--shadow);transition:transform .16s,box-shadow .16s,border-color .16s;position:relative}
+.grid{display:flex;gap:18px;align-items:flex-start}
+.masonry-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:18px}
+.card{margin:0;background:var(--card);border:1px solid var(--card-edge);border-radius:13px;overflow:hidden;box-shadow:var(--shadow);transition:transform .16s,box-shadow .16s,border-color .16s;position:relative}
 .card:hover{box-shadow:var(--shadow-hi);border-color:var(--rule2)}
 .card.pinned{border-color:var(--gold)}
 .card.pinned::after{content:"";position:absolute;top:11px;right:11px;width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(184,137,63,.18);z-index:2}
@@ -250,3 +250,9 @@ html[data-theme="party"] .todo.done .check{background:#16c79a;border-color:#16c7
 .sheet input[type="datetime-local"]{font-family:var(--sans);accent-color:var(--accent)}
 #taskNotes{width:100%;background:var(--paper);border:1px solid var(--card-edge);color:var(--ink);border-radius:9px;padding:10px 12px;font-family:var(--sans);font-size:13.5px;resize:vertical;line-height:1.5}
 #taskNotes:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+/* ---- sort control ---- */
+.headright{display:flex;align-items:center;gap:14px;padding-bottom:6px}
+.sortbtn{font-family:var(--mono);font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink3);background:var(--card);border:1px solid var(--card-edge);border-radius:7px;padding:5px 11px;cursor:pointer;white-space:nowrap;transition:.14s}
+.sortbtn:hover{color:var(--accent);border-color:var(--accent)}
+.headright .count{padding-bottom:0}

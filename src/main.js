@@ -6,6 +6,7 @@ let mode='stash', view='all', activeFolder=null, activeTag=null, activeList=null
 
 // Apply the saved theme immediately to avoid a flash of the default palette.
 try{ document.documentElement.setAttribute('data-theme', localStorage.getItem('stash-theme')||'paper'); }catch(e){}
+let sortOrder=(()=>{try{return localStorage.getItem('stash-sort');}catch(e){return null;}})()||'new';
 
 async function load(){
   try{ items = await invoke('list_items'); }catch(e){ console.error(e); items=[]; }
@@ -88,8 +89,10 @@ function applyPreview(cardEl,p){
   const slot=cardEl.querySelector('.lprev'); if(!slot) return;
   if(p.title){const u=cardEl.querySelector('.lurl');if(u){u.textContent=p.title;}}
   if(p.image){
-    slot.innerHTML='<div class="media linkmedia"><img loading="lazy" alt="" src="'+esc(p.image)+'"></div>';
-    slot.querySelector('img').onerror=()=>{slot.innerHTML='';};
+    slot.innerHTML='<div class="media linkmedia"><img alt="" src="'+esc(p.image)+'"></div>';
+    const im=slot.querySelector('img');
+    im.onerror=()=>{slot.innerHTML='';};
+    im.onload=()=>{ if(mode==='stash') scheduleRelayout(); };  // rebalance once the image sets the card height
   }
 }
 // A custom favicon: a rounded monogram tile in the app's palette, picked stably from the host.
@@ -169,6 +172,7 @@ nf.addEventListener('keydown',async e=>{if(e.key==='Enter'){const n=nf.value.tri
   await invoke('add_folder',{name:n});nf.value='';await refreshFolders();}}});
 document.querySelectorAll('.nav[data-view]').forEach(n=>n.onclick=()=>openView(n.dataset.view));
 document.getElementById('search').addEventListener('input',e=>{q=e.target.value.toLowerCase();mode='stash';render();});
+document.getElementById('sortBtn').onclick=()=>{sortOrder=sortOrder==='new'?'old':'new';try{localStorage.setItem('stash-sort',sortOrder);}catch(e){}render();};
 
 // New to-do list (sidebar input).
 const nl=document.getElementById('newlist');
@@ -205,7 +209,7 @@ function visible(){const searching=!!q;return items.filter(it=>{
   if(['text','link','image','file'].includes(view)&&it.type!==view)return false;
   if(activeFolder&&it.folder!==activeFolder)return false;
   if(activeTag&&!it.tags.includes(activeTag))return false;
-  return true;}).sort((a,b)=>(b.pinned-a.pinned)||(b.ts-a.ts));}
+  return true;}).sort((a,b)=>(b.pinned-a.pinned)||(sortOrder==='old'?(a.ts-b.ts):(b.ts-a.ts)));}
 
 // Show the stash UI (capture + grid) or the to-do UI, depending on mode.
 function applyMode(){
@@ -213,6 +217,7 @@ function applyMode(){
   document.getElementById('capture').style.display=todo?'none':'';
   document.querySelector('.searchwrap').style.display=todo?'none':'';
   document.getElementById('grid').style.display=todo?'none':'';
+  document.getElementById('sortBtn').style.display=todo?'none':'';
   document.getElementById('todoPanel').style.display=todo?'block':'none';
   if(todo) document.getElementById('empty').style.display='none';
 }
@@ -275,9 +280,52 @@ function render(){
     : (activeTag?'Tagged <em>#'+esc(activeTag)+'</em>':esc(t));
   document.getElementById('eyebrow').textContent=searching?'Across everything':(activeTag?'Tag':(activeFolder?'Folder':(eyebrows[view]||'')));
   document.getElementById('count').textContent=list.length+(list.length===1?' item':' items');
-  const grid=document.getElementById('grid');grid.innerHTML='';
+  document.getElementById('sortBtn').textContent=(sortOrder==='old'?'↑ Oldest':'↓ Newest');
   document.getElementById('empty').style.display=list.length?'none':'block';
-  list.forEach((it)=>{grid.appendChild(card(it));});
+  layoutGrid(list);
+}
+
+// Deterministic masonry: place each card in the currently-shortest column.
+// (Replaces CSS multi-column, which left blank gaps when preview images loaded late.)
+function layoutGrid(list){
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  if(!list.length) return;
+  const gap=18, colW=264;
+  const width=grid.clientWidth||grid.parentElement.clientWidth||800;
+  const ncol=Math.max(1,Math.min(6,Math.floor((width+gap)/(colW+gap))));
+  const cols=[],h=new Array(ncol).fill(0);
+  for(let i=0;i<ncol;i++){const c=document.createElement('div');c.className='masonry-col';grid.appendChild(c);cols.push(c);}
+  list.forEach(it=>{
+    let mi=0; for(let i=1;i<ncol;i++) if(h[i]<h[mi]) mi=i;
+    const el=card(it);
+    cols[mi].appendChild(el);
+    h[mi]+=el.getBoundingClientRect().height+gap;
+  });
+}
+let _resizeT;
+window.addEventListener('resize',()=>{clearTimeout(_resizeT);_resizeT=setTimeout(()=>{ if(mode==='stash') render(); },150);});
+
+// Rebalance columns once preview images have set their real heights — reuses the existing
+// card elements (no re-render), so it can't loop on image onload.
+let _relayoutT;
+function scheduleRelayout(){ clearTimeout(_relayoutT); _relayoutT=setTimeout(relayoutExisting,120); }
+function relayoutExisting(){
+  if(mode!=='stash') return;
+  const grid=document.getElementById('grid');
+  const cards=[...grid.querySelectorAll('.card')];
+  if(cards.length<2) return;
+  const gap=18, colW=264;
+  const width=grid.clientWidth||800;
+  const ncol=Math.max(1,Math.min(6,Math.floor((width+gap)/(colW+gap))));
+  const cols=[],h=new Array(ncol).fill(0);
+  grid.innerHTML='';
+  for(let i=0;i<ncol;i++){const c=document.createElement('div');c.className='masonry-col';grid.appendChild(c);cols.push(c);}
+  cards.forEach(el=>{
+    let mi=0; for(let i=1;i<ncol;i++) if(h[i]<h[mi]) mi=i;
+    cols[mi].appendChild(el);
+    h[mi]+=el.getBoundingClientRect().height+gap;
+  });
 }
 
 // ---- navigation helpers (each clears the others so filters never conflict) ----
