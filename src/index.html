@@ -28,6 +28,11 @@
       <div class="newfolder"><input id="newfolder" placeholder="New folder&hellip;" maxlength="24"></div>
     </div>
     <div class="section">
+      <div class="label">Lists</div>
+      <div id="lists"></div>
+      <div class="newfolder"><input id="newlist" placeholder="New to-do list&hellip;" maxlength="24"></div>
+    </div>
+    <div class="section">
       <div class="label">Tags</div>
       <div class="tags" id="tagwrap"></div>
     </div>
@@ -51,6 +56,14 @@
     </div>
     <div class="scroll">
       <div class="grid" id="grid"></div>
+      <div id="todoPanel" style="display:none">
+        <div class="todoAdd">
+          <input id="todoInput" placeholder="Add a task&hellip;" maxlength="200">
+          <button class="btn primary sm" id="todoAddBtn">Add</button>
+          <button class="btn sm" id="todoClearBtn">Clear done</button>
+        </div>
+        <div class="todoList" id="todoItems"></div>
+      </div>
       <div class="empty" id="empty" style="display:none">
         <div class="ill">&#10070;</div><div class="big">Nothing stashed yet</div>
         <p>Paste, type, or drop something above to begin your collection.</p>
@@ -66,6 +79,15 @@
     <div class="chips" id="modalChips"></div>
     <input id="tagInput" placeholder="Add a tag&hellip;" maxlength="20">
     <div class="row"><button class="btn primary sm" id="tagClose">Done</button></div>
+  </div>
+</div>
+<div class="modal" id="imgModal">
+  <div class="lightwrap">
+    <div class="lightStage" id="lightStage"><img id="lightboxImg" src="" alt=""></div>
+    <div class="lightfoot">
+      <div class="lightcap" id="lightcap"></div>
+      <div class="lightbar" id="lightbar"></div>
+    </div>
   </div>
 </div>
 <script src="main.js"></script>

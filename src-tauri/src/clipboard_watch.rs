@@ -105,7 +105,7 @@ pub fn hash(s: &str) -> String {
     to_hex(&h.finalize())
 }
 
-fn hash_bytes(b: &[u8]) -> String {
+pub fn hash_bytes(b: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(b);
     to_hex(&h.finalize())

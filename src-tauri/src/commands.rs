@@ -101,6 +101,13 @@ pub fn update_item(
     db::update(&conn, &id, pinned, tags).map_err(|e| e.to_string())
 }
 
+/// Move an item into a folder (drag-and-drop), or out of any folder when `folder` is null.
+#[tauri::command]
+pub fn set_item_folder(state: State<AppState>, id: String, folder: Option<String>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    db::set_folder(&conn, &id, folder.as_deref()).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn delete_item(state: State<AppState>, id: String) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
@@ -294,6 +301,132 @@ pub async fn fetch_link_preview(url: String) -> Result<LinkPreview, String> {
     let icon = resolve(find_icon(body)).or_else(|| base.join("/favicon.ico").ok().map(|u| u.to_string()));
 
     Ok(LinkPreview { image, title, icon, host })
+}
+
+fn item_path(state: &State<AppState>, id: &str) -> Result<(Option<String>, String), String> {
+    let conn = state.db.lock().unwrap();
+    db::name_content(&conn, id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "item not found".to_string())
+}
+
+/// Copy an image item's pixels onto the system clipboard (so it can be pasted as an image).
+#[tauri::command]
+pub fn copy_image_to_clipboard(state: State<AppState>, id: String) -> Result<(), String> {
+    let (_, path) = item_path(&state, &id)?;
+    let img = image::open(&path).map_err(|e| e.to_string())?.to_rgba8();
+    let (w, h) = img.dimensions();
+    let bytes = img.into_raw();
+    // Record the hash so the background watcher recognises our own write and won't re-capture it.
+    *state.last_hash.lock().unwrap() = Some(clipboard_watch::hash_bytes(&bytes));
+    let mut clip = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    clip.set_image(arboard::ImageData {
+        width: w as usize,
+        height: h as usize,
+        bytes: std::borrow::Cow::Owned(bytes),
+    })
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Re-encode an image item to the requested format and save it via a native dialog.
+/// Returns true if saved, false if cancelled.
+#[tauri::command]
+pub fn export_image_as(
+    app: AppHandle,
+    state: State<AppState>,
+    id: String,
+    format: String,
+) -> Result<bool, String> {
+    let (name, path) = item_path(&state, &id)?;
+    let img = image::open(&path).map_err(|e| e.to_string())?;
+    let (fmt, ext) = match format.to_lowercase().as_str() {
+        "png" => (image::ImageFormat::Png, "png"),
+        "jpeg" | "jpg" => (image::ImageFormat::Jpeg, "jpg"),
+        "gif" => (image::ImageFormat::Gif, "gif"),
+        "bmp" => (image::ImageFormat::Bmp, "bmp"),
+        other => return Err(format!("unsupported format: {other}")),
+    };
+    let base = name.unwrap_or_else(|| "image".into());
+    let stem = base.rsplit_once('.').map(|(s, _)| s.to_string()).unwrap_or(base);
+    let default_name = format!("{stem}.{ext}");
+
+    use tauri_plugin_dialog::DialogExt;
+    match app.dialog().file().set_file_name(default_name).blocking_save_file() {
+        Some(dest) => {
+            let dest_path = dest.into_path().map_err(|e| e.to_string())?;
+            // JPEG/BMP have no alpha channel — flatten to RGB first.
+            let res = if matches!(fmt, image::ImageFormat::Jpeg | image::ImageFormat::Bmp) {
+                img.to_rgb8().save_with_format(&dest_path, fmt)
+            } else {
+                img.save_with_format(&dest_path, fmt)
+            };
+            res.map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+        None => Ok(false),
+    }
+}
+
+// ---------------- to-do lists ----------------
+
+#[tauri::command]
+pub fn list_todo_lists(state: State<AppState>) -> Result<Vec<db::TodoList>, String> {
+    let conn = state.db.lock().unwrap();
+    db::list_todo_lists(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn add_todo_list(state: State<AppState>, name: String) -> Result<String, String> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let ts = chrono::Utc::now().timestamp_millis();
+    let conn = state.db.lock().unwrap();
+    db::add_todo_list(&conn, &id, &name, ts).map_err(|e| e.to_string())?;
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn rename_todo_list(state: State<AppState>, id: String, name: String) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    db::rename_todo_list(&conn, &id, &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_todo_list(state: State<AppState>, id: String) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    db::delete_todo_list(&conn, &id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_todos(state: State<AppState>, list_id: String) -> Result<Vec<db::Todo>, String> {
+    let conn = state.db.lock().unwrap();
+    db::list_todos(&conn, &list_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn add_todo(state: State<AppState>, list_id: String, text: String) -> Result<(), String> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let ts = chrono::Utc::now().timestamp_millis();
+    let conn = state.db.lock().unwrap();
+    db::add_todo(&conn, &id, &list_id, &text, ts).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_todo_done(state: State<AppState>, id: String, done: bool) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    db::set_todo_done(&conn, &id, done).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_todo(state: State<AppState>, id: String) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    db::delete_todo(&conn, &id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn clear_completed(state: State<AppState>, list_id: String) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    db::clear_completed(&conn, &list_id).map_err(|e| e.to_string())
 }
 
 /// Export the entire collection (items + folders) as a JSON value.
