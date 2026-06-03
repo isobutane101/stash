@@ -4,6 +4,9 @@ const { listen } = window.__TAURI__.event;
 let items=[], folders=[], lists=[], todos=[];
 let mode='stash', view='all', activeFolder=null, activeTag=null, activeList=null, q='', modalId=null, lightId=null, draggingId=null;
 
+// Apply the saved theme immediately to avoid a flash of the default palette.
+try{ document.documentElement.setAttribute('data-theme', localStorage.getItem('stash-theme')||'paper'); }catch(e){}
+
 async function load(){
   try{ items = await invoke('list_items'); }catch(e){ console.error(e); items=[]; }
   try{ folders = await invoke('list_folders'); }catch(e){ console.error(e); folders=[]; }
@@ -90,12 +93,18 @@ function applyPreview(cardEl,p){
   }
 }
 // A custom favicon: a rounded monogram tile in the app's palette, picked stably from the host.
-const FAV_PALETTE=['#9c3a2f','#bb5444','#b8893f','#5c5447','#3b8c7e'];
+const FAV_PALETTES={
+  paper:['#9c3a2f','#bb5444','#b8893f','#5c5447','#3b8c7e'],
+  mono:['#27272a','#3f3f46','#52525b','#71717a','#18181b'],
+  party:['#5b54ff','#22c993','#ff5db1','#ffb43c','#11b4d4']
+};
 function monogram(host){
   const h=(host||'').replace(/^www\./,'');
   const letter=(h.match(/[a-z0-9]/i)||['#'])[0].toUpperCase();
   let s=0; for(const ch of (h||'?')) s=(s*31+ch.charCodeAt(0))>>>0;
-  const bg=FAV_PALETTE[s%FAV_PALETTE.length];
+  const theme=document.documentElement.getAttribute('data-theme')||'paper';
+  const pal=FAV_PALETTES[theme]||FAV_PALETTES.paper;
+  const bg=pal[s%pal.length];
   const svg='<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">'
     +'<rect width="32" height="32" rx="8" fill="'+bg+'"/>'
     +'<text x="16" y="21.5" font-family="Fraunces,Georgia,serif" font-size="17" font-weight="600" fill="#f4efe6" text-anchor="middle">'+letter+'</text>'
@@ -347,5 +356,14 @@ listen('clipboard-captured', async (e)=>{
     toast('Captured from clipboard');
   }catch(err){ console.error(err); }
 });
+
+// ---- theme switcher ----
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  try{ localStorage.setItem('stash-theme',t); }catch(e){}
+  document.querySelectorAll('.theme-opt').forEach(b=>b.classList.toggle('on',b.dataset.theme===t));
+}
+document.querySelectorAll('.theme-opt').forEach(b=>b.onclick=()=>{setTheme(b.dataset.theme);draw();});
+setTheme((()=>{try{return localStorage.getItem('stash-theme');}catch(e){return 'paper';}})()||'paper');
 
 load();

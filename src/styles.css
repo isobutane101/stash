@@ -171,3 +171,46 @@ body{
 .lightbar{display:flex;gap:8px;flex-wrap:wrap}
 .btn.danger{color:var(--accent);border-color:var(--accent-soft)}
 .btn.danger:hover{background:var(--accent-soft);border-color:var(--accent)}
+
+/* ============ THEMES ============ */
+/* Mono — clean black & white */
+html[data-theme="mono"]{
+  --paper:#ffffff; --paper2:#f4f4f5; --card:#ffffff; --card-edge:#e4e4e7;
+  --ink:#0a0a0a; --ink2:#3f3f46; --ink3:#71717a; --ink4:#a1a1aa;
+  --rule:#ececef; --rule2:#d4d4d8;
+  --accent:#0a0a0a; --accent2:#27272a; --accent-soft:#ececec;
+  --gold:#52525b;
+  --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px -12px rgba(0,0,0,.14);
+  --shadow-hi:0 2px 4px rgba(0,0,0,.05), 0 18px 40px -16px rgba(0,0,0,.22);
+}
+html[data-theme="mono"] body{background-image:radial-gradient(circle at 1px 1px, rgba(0,0,0,.045) 1px, transparent 0)}
+
+/* Party — bright plastic candy colors */
+html[data-theme="party"]{
+  --paper:#eef1fd; --paper2:#e4e9fc; --card:#ffffff; --card-edge:#dee4fb;
+  --ink:#211a52; --ink2:#5b4fa6; --ink3:#9189c9; --ink4:#bcb6e2;
+  --rule:#e3e2fb; --rule2:#cfcaf5;
+  --accent:#5b54ff; --accent2:#7d77ff; --accent-soft:#e6e4ff;
+  --gold:#ffc93c;
+  --shadow:0 2px 5px rgba(91,84,255,.10), 0 12px 30px -12px rgba(91,84,255,.32);
+  --shadow-hi:0 3px 9px rgba(91,84,255,.18), 0 22px 46px -16px rgba(91,84,255,.42);
+}
+html[data-theme="party"] body{background-image:radial-gradient(circle at 1px 1px, rgba(91,84,255,.07) 1px, transparent 0)}
+/* multi-color flair: blue (accent), green, yellow, pink */
+html[data-theme="party"] .brand h1 .mark{background:#22c993;box-shadow:0 0 0 3px #c7f6e4}
+html[data-theme="party"] .nav.active::before{background:#ff5db1}
+html[data-theme="party"] .tag-pill.on{background:#22c993;border-color:#22c993;color:#fff}
+html[data-theme="party"] .cfoot .tg{color:#0f9d58;background:#dcf6e7}
+html[data-theme="party"] .badge{background:#5b54ff}
+html[data-theme="party"] .head h2 em{color:#ff5db1}
+html[data-theme="party"] .card.pinned{border-color:#ffc93c}
+html[data-theme="party"] .searchwrap input:focus{border-bottom-color:#ff5db1}
+html[data-theme="party"] .todo.done .check{background:#22c993;border-color:#22c993}
+
+/* theme switcher (sidebar) */
+.themes{display:flex;gap:6px;padding:2px 11px}
+.theme-opt{flex:1;display:flex;align-items:center;gap:6px;justify-content:center;font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;padding:7px 5px;border-radius:8px;border:1px solid var(--card-edge);background:var(--card);color:var(--ink3);cursor:pointer;transition:.14s}
+.theme-opt:hover{color:var(--ink);border-color:var(--rule2)}
+.theme-opt.on{color:var(--ink);border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.theme-opt .sw{width:12px;height:12px;border-radius:4px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.10)}
+.sw.party{background:linear-gradient(135deg,#5b54ff 0%,#22c993 50%,#ffc93c 100%)}
