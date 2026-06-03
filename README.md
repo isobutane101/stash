@@ -1,10 +1,11 @@
 # Stash
 
-A native macOS **menu-bar** app that is a clipboard manager *and* a notebook. Stash watches
-the system clipboard in the background and automatically saves whatever you copy — text,
-links, and images — into a searchable, taggable, pinnable, folder-able collection. You can
-also jot notes, attach/drag-drop files, copy items back with one click, and download saved
-blobs.
+A native macOS **menu-bar** app that is a clipboard manager, a notebook, **and** a to-do
+app. Stash watches the system clipboard in the background and automatically saves whatever
+you copy — text, links, and images — into a searchable, taggable, pinnable, folder-able
+collection. You can also jot notes, attach/drag-drop files, build multiple to-do lists with
+due dates and subtasks, switch themes, copy items back with one click, and it keeps itself
+up to date.
 
 Built with **Tauri v2** + a **Rust** backend and a vanilla HTML/CSS/JS UI in an editorial
 paper-and-oxblood theme.
@@ -40,18 +41,58 @@ only releases signed with the project's private key will install.
 
 ## Features
 
+### Capture
 - **Background clipboard auto-capture** — a Rust thread polls the clipboard, hashes contents
   to dedupe, and saves new items automatically. No paste needed.
-- **Link previews** — when you’re online, links fetch a thumbnail (`og:image`), page title,
-  and favicon so your saved links look like cards, not raw URLs.
+- **Manual capture** — paste (⌘V), type a note, drag files in, or attach files; ⌘↵ to save.
+- **Four item types** — notes (text), links, images, and files, each rendered to suit.
+- **Copy-back without duplicates** — copying an item from the app (text *or* the actual image)
+  updates the watcher's last-seen hash so it isn't re-captured.
+
+### Organize
+- **Folders** — create folders and **drag any card onto a folder** in the sidebar to file it.
+- **Tags** — add multiple tags per item; click a sidebar tag to filter the whole collection.
+- **Pin** — keep important items at the top.
+- **To-do lists** — create as many lists as you want, each with its own tasks.
+
+### Find & sort
+- **Unified search** — searches text, links, file names, tags, and folders across everything,
+  regardless of the current view.
+- **Sort toggle** — flip between **Newest** and **Oldest** (chronological); remembered across
+  launches. Pinned items stay on top.
+- **Library filters** — All items, Pinned, Notes, Links, Images, Files, plus per-folder and
+  per-tag views.
+- **Masonry layout** — a deterministic shortest-column grid that rebalances as previews load.
+
+### Links & media
+- **Link previews** — links fetch an `og:image` thumbnail and page title when you're online,
+  so saved links look like cards instead of raw URLs.
+- **Custom monogram favicons** — a generated SVG tile in the app's palette (initial + color
+  picked per-site), so links always have a clean icon, online or off.
+- **Image lightbox** — click an image to enlarge it, then **Copy** (to clipboard), **Download**,
+  **Export as PNG / JPEG**, or **Delete**.
+
+### To-do lists (Google-Tasks style)
+- **Due dates & time** with color-coded chips (Today / Tomorrow / weekday / date; **red when
+  overdue**) and quick **Today / Tomorrow / Next week** buttons.
+- **Notes** and **subtasks** per task; checking off a parent checks its subtasks.
+- **Auto-sort** — incomplete first, then soonest due — plus **Clear done** and remaining-count
+  badges in the sidebar.
+
+### Look & feel
+- **Themes** — **Paper** (warm oxblood/cream), **Mono** (black & white), and **Party** (bright
+  multi-color). Persisted across launches; even re-tints the link monograms.
+
+### System
 - **Menu-bar (tray) app** — left-click the backpack icon to toggle the window; right-click for
-  Open / Quit. No dock icon (macOS accessory activation policy).
-- **SQLite persistence** — items and folders live in `stash.db`; image/file blobs are written
-  to disk under `blobs/` (paths, not base64, are stored in the DB).
-- **Notes, links, images, files** — manual capture, pin, tag, folder-sort, and unified search
-  across the whole collection.
-- **Copy-back without duplicates** — copying an item from the app updates the watcher’s
-  last-seen hash so it isn’t re-captured.
+  Open / Check for Updates / Quit. No dock icon (macOS accessory activation policy).
+- **Auto-updates** — checks on launch (and on demand); downloads, signature-verifies, installs
+  in place, and relaunches. See [Updates](#updates).
+- **Local SQLite persistence** — items, folders, and to-do lists live in `stash.db` (WAL mode);
+  image/file blobs are written to disk under `blobs/` (paths, not base64, in the DB). Your data
+  never leaves your machine, except link-preview fetches to the sites you save.
+- **Keyboard shortcuts** — `/` to focus search, `⌘V` paste-to-save, `⌘↵` save, `Esc` to close
+  dialogs.
 
 ## Project layout
 
