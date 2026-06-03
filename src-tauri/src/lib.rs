@@ -28,10 +28,67 @@ fn toggle_main_window(app: &tauri::AppHandle) {
     }
 }
 
+/// Check the release endpoint for a newer version. When `silent`, only speaks up if an
+/// update is found (used on launch); otherwise reports "up to date" / errors too (menu item).
+#[cfg(desktop)]
+async fn run_update_check(app: tauri::AppHandle, silent: bool) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+    use tauri_plugin_updater::UpdaterExt;
+
+    let report = |msg: String, kind: MessageDialogKind| {
+        app.dialog().message(msg).kind(kind).title("Stash").blocking_show();
+    };
+
+    let updater = match app.updater() {
+        Ok(u) => u,
+        Err(e) => {
+            if !silent {
+                report(format!("Could not check for updates:\n{e}"), MessageDialogKind::Error);
+            }
+            return;
+        }
+    };
+
+    match updater.check().await {
+        Ok(Some(update)) => {
+            let ver = update.version.clone();
+            let notes = update.body.clone().unwrap_or_default();
+            let msg = if notes.trim().is_empty() {
+                format!("Stash {ver} is available. Install and restart now?")
+            } else {
+                format!("Stash {ver} is available.\n\n{notes}\n\nInstall and restart now?")
+            };
+            let install = app
+                .dialog()
+                .message(msg)
+                .title("Update available")
+                .buttons(MessageDialogButtons::OkCancelCustom("Install".into(), "Later".into()))
+                .blocking_show();
+            if install {
+                match update.download_and_install(|_chunk, _total| {}, || {}).await {
+                    Ok(_) => app.restart(),
+                    Err(e) => report(format!("Update failed:\n{e}"), MessageDialogKind::Error),
+                }
+            }
+        }
+        Ok(None) => {
+            if !silent {
+                report("You're on the latest version.".into(), MessageDialogKind::Info);
+            }
+        }
+        Err(e) => {
+            if !silent {
+                report(format!("Could not check for updates:\n{e}"), MessageDialogKind::Error);
+            }
+        }
+    }
+}
+
 fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Open Stash", true, None::<&str>)?;
+    let update = MenuItem::with_id(app, "update", "Check for Updates…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &quit])?;
+    let menu = Menu::with_items(app, &[&show, &update, &quit])?;
 
     // Monochrome backpack silhouette; `icon_as_template` lets macOS tint it for the menu bar.
     TrayIconBuilder::new()
@@ -41,6 +98,13 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         .show_menu_on_left_click(false) // left-click toggles the window instead
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => toggle_main_window(app),
+            "update" => {
+                #[cfg(desktop)]
+                {
+                    let app = app.clone();
+                    tauri::async_runtime::spawn(async move { run_update_check(app, false).await });
+                }
+            }
             "quit" => app.exit(0),
             _ => {}
         })
@@ -92,6 +156,15 @@ pub fn run() {
                 let _ = w.show();
                 let _ = w.unminimize();
                 let _ = w.set_focus();
+            }
+
+            // Auto-updater (desktop only): register the plugin and check quietly on launch.
+            #[cfg(desktop)]
+            {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move { run_update_check(handle, true).await });
             }
 
             Ok(())

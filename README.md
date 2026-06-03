@@ -27,6 +27,15 @@ paper-and-oxblood theme.
 
 Works on both Apple Silicon and Intel Macs (universal binary).
 
+### Updates
+
+Stash updates itself. On launch it quietly checks for a newer version, and you can also
+trigger it from the menu-bar icon → **Check for Updates…**. If one is available, Stash
+downloads the **signed** update, verifies it, installs in place, and relaunches — no
+re-downloading the `.dmg`. Updates are served from this repo's
+[GitHub Releases](../../releases) and verified against a public key embedded in the app, so
+only releases signed with the project's private key will install.
+
 ---
 
 ## Features
@@ -79,6 +88,17 @@ PATH="$HOME/.cargo/bin:$PATH" npm run tauri dev
 # build a universal distributable (.app + .dmg under src-tauri/target/.../bundle)
 PATH="$HOME/.cargo/bin:$PATH" npm run tauri build -- --target universal-apple-darwin
 ```
+
+### Cutting a release (maintainer)
+
+To ship an update so installed copies upgrade themselves:
+
+1. Bump `"version"` in `src-tauri/tauri.conf.json`.
+2. Run `scripts/release.sh "what changed"`.
+
+That builds a signed universal app, generates the updater manifest (`latest.json`), and
+publishes a GitHub Release. Signing uses the private key at `~/.tauri/stash.key` — **keep it
+safe and never commit it**; losing it means you can no longer push updates to existing installs.
 
 ## Implementation notes
 

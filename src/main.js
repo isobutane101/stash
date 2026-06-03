@@ -84,10 +84,19 @@ function applyPreview(cardEl,p){
   } else { faviconRow(cardEl,p); }
 }
 function faviconRow(cardEl,p){
-  if(!p.icon) return;
-  const host=cardEl.querySelector('.host'); if(!host||host.querySelector('img')) return;
-  const img=document.createElement('img');img.className='favicon';img.alt='';img.loading='lazy';img.src=p.icon;
-  img.onerror=()=>img.remove();
+  const host=cardEl.querySelector('.host'); if(!host||host.querySelector('img.favicon')) return;
+  const h=p.host||'';
+  // Try the page's declared icon first, then reliable favicon services; skip the broken-image box.
+  const candidates=[p.icon,
+    h&&('https://icons.duckduckgo.com/ip3/'+h+'.ico'),
+    h&&('https://www.google.com/s2/favicons?domain='+encodeURIComponent(h)+'&sz=64')].filter(Boolean);
+  if(!candidates.length) return;
+  const img=document.createElement('img');img.className='favicon';img.alt='';img.loading='lazy';
+  img.style.visibility='hidden';                       // stay invisible until one actually loads
+  let i=0;
+  img.onload=()=>{img.style.visibility='visible';};
+  img.onerror=()=>{ if(++i<candidates.length) img.src=candidates[i]; else img.remove(); };
+  img.src=candidates[0];
   host.prepend(img);
 }
 
