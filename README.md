@@ -1,98 +1,85 @@
 # Stash
 
-A native macOS **menu-bar** app that is a clipboard manager, a notebook, **and** a to-do
-app. Stash watches the system clipboard in the background and automatically saves whatever
-you copy — text, links, and images — into a searchable, taggable, pinnable, folder-able
-collection. You can also jot notes, attach/drag-drop files, build multiple to-do lists with
-due dates and subtasks, switch themes, copy items back with one click, and it keeps itself
-up to date.
+Stash is a macOS menu-bar app for clipboard history, notes, links, images, files, and to-do
+lists. It runs in the background and saves what you copy so you can find it again later.
+Everything is stored locally in a SQLite database.
 
-Built with **Tauri v2** + a **Rust** backend and a vanilla HTML/CSS/JS UI in an editorial
-paper-and-oxblood theme.
+It's built with Tauri v2: a Rust backend with a plain HTML/CSS/JS frontend (the UI has no
+build step).
 
----
+## Download
 
-## ⬇️ Download & run (macOS)
-
-1. Download **`Stash_universal.dmg`** from the **[latest release](../../releases/latest)**.
-2. Open the `.dmg` and drag **Stash** into your **Applications** folder.
-3. **First launch:** right-click **Stash** in Applications → **Open** → **Open**.
-   (This one-time step is needed because the app isn't paid-Apple-Developer signed.)
-
-   If macOS says Stash is *“damaged”* or won’t open, run this once in **Terminal**, then open again:
+1. Download `Stash_universal.dmg` from the [latest release](../../releases/latest).
+2. Open it and drag Stash into your Applications folder.
+3. The first time, right-click Stash and choose Open, then Open again. Gatekeeper warns
+   because the app isn't signed with a paid Apple Developer account. If macOS says the app is
+   "damaged", run this once and try again:
    ```bash
    xattr -cr /Applications/Stash.app
    ```
-4. Stash lives in your **menu bar** as a small **backpack** icon — click it to show/hide the
-   window. (There is no dock icon.)
 
-Works on both Apple Silicon and Intel Macs (universal binary).
+It's a universal binary, so it runs on both Apple Silicon and Intel Macs. Stash sits in the
+menu bar (the backpack icon) and has no dock icon. Click the icon to show or hide the window.
 
-### Updates
+## Updates
 
-Stash updates itself. On launch it quietly checks for a newer version, and you can also
-trigger it from the menu-bar icon → **Check for Updates…**. If one is available, Stash
-downloads the **signed** update, verifies it, installs in place, and relaunches — no
-re-downloading the `.dmg`. Updates are served from this repo's
-[GitHub Releases](../../releases) and verified against a public key embedded in the app, so
-only releases signed with the project's private key will install.
+Stash checks for a newer version when it starts, and you can also check from the menu-bar icon
+(Check for Updates). If there's one, it downloads the update, checks the signature against a
+public key built into the app, installs it, and restarts, so you don't have to re-download the
+dmg. Updates are published as GitHub Releases in this repo.
 
----
+## Source
+
+The whole app is in this repo. The frontend is in `src/` (`index.html`, `styles.css`,
+`main.js`) and the Rust backend is in `src-tauri/src/`. See [Project layout](#project-layout)
+for what each file does, or [Build from source](#build-from-source) to run it yourself.
 
 ## Features
 
-### Capture
-- **Background clipboard auto-capture** — a Rust thread polls the clipboard, hashes contents
-  to dedupe, and saves new items automatically. No paste needed.
-- **Manual capture** — paste (⌘V), type a note, drag files in, or attach files; ⌘↵ to save.
-- **Four item types** — notes (text), links, images, and files, each rendered to suit.
-- **Copy-back without duplicates** — copying an item from the app (text *or* the actual image)
-  updates the watcher's last-seen hash so it isn't re-captured.
+**Capturing things**
+- Watches the clipboard and saves new text, links, and images on its own. It hashes contents
+  so the same thing isn't saved twice, and it skips its own copies.
+- You can also paste (⌘V), type a note, or drag and drop / attach files. ⌘↵ saves.
 
-### Organize
-- **Folders** — create folders and **drag any card onto a folder** in the sidebar to file it.
-- **Tags** — add multiple tags per item; click a sidebar tag to filter the whole collection.
-- **Pin** — keep important items at the top.
-- **To-do lists** — create as many lists as you want, each with its own tasks.
+**Keeping it organized**
+- Folders. Drag any card onto a folder in the sidebar to move it there.
+- Tags. Add as many as you want per item, and click a tag to filter everything by it.
+- Pin items to keep them at the top.
+- To-do lists (below).
 
-### Find & sort
-- **Unified search** — searches text, links, file names, tags, and folders across everything,
-  regardless of the current view.
-- **Sort toggle** — flip between **Newest** and **Oldest** (chronological); remembered across
-  launches. Pinned items stay on top.
-- **Library filters** — All items, Pinned, Notes, Links, Images, Files, plus per-folder and
+**Finding things**
+- Search runs across text, link URLs, file names, tags, and folder names, over the whole
+  collection rather than just the current view.
+- Sort by newest or oldest with the toggle in the header. Pinned items stay on top.
+- Filter by type in the sidebar: All, Pinned, Notes, Links, Images, Files, plus per-folder and
   per-tag views.
-- **Masonry layout** — a deterministic shortest-column grid that rebalances as previews load.
+- The grid is a masonry layout that rebalances as link previews load in.
 
-### Links & media
-- **Link previews** — links fetch an `og:image` thumbnail and page title when you're online,
-  so saved links look like cards instead of raw URLs.
-- **Custom monogram favicons** — a generated SVG tile in the app's palette (initial + color
-  picked per-site), so links always have a clean icon, online or off.
-- **Image lightbox** — click an image to enlarge it, then **Copy** (to clipboard), **Download**,
-  **Export as PNG / JPEG**, or **Delete**.
+**Links and images**
+- Links pull an `og:image` thumbnail and the page title when you're online.
+- Every link gets a generated SVG favicon (the site's initial on a colored tile), so it has an
+  icon even when offline.
+- Click an image to open it full size. From there you can copy it, download it, export it as
+  PNG or JPEG, or delete it.
 
-### To-do lists (Google-Tasks style)
-- **Due dates & time** with color-coded chips (Today / Tomorrow / weekday / date; **red when
-  overdue**) and quick **Today / Tomorrow / Next week** buttons.
-- **Notes** and **subtasks** per task; checking off a parent checks its subtasks.
-- **Auto-sort** — incomplete first, then soonest due — plus **Clear done** and remaining-count
-  badges in the sidebar.
+**To-do lists**
+- Make as many lists as you want.
+- Tasks can have a due date and time. Overdue dates show in red, and there are quick buttons
+  for Today, Tomorrow, and Next week.
+- Tasks can have notes and subtasks. Checking off a task checks off its subtasks.
+- Incomplete tasks sort first, then by soonest due date. "Clear done" removes the finished
+  ones, and the sidebar shows how many are left.
 
-### Look & feel
-- **Themes** — **Paper** (warm oxblood/cream), **Mono** (black & white), and **Party** (bright
-  multi-color). Persisted across launches; even re-tints the link monograms.
+**Themes**
+- Three themes: Paper (the warm default), Mono (black and white), and Party (bright colors).
+  Your choice is remembered between launches.
 
-### System
-- **Menu-bar (tray) app** — left-click the backpack icon to toggle the window; right-click for
-  Open / Check for Updates / Quit. No dock icon (macOS accessory activation policy).
-- **Auto-updates** — checks on launch (and on demand); downloads, signature-verifies, installs
-  in place, and relaunches. See [Updates](#updates).
-- **Local SQLite persistence** — items, folders, and to-do lists live in `stash.db` (WAL mode);
-  image/file blobs are written to disk under `blobs/` (paths, not base64, in the DB). Your data
-  never leaves your machine, except link-preview fetches to the sites you save.
-- **Keyboard shortcuts** — `/` to focus search, `⌘V` paste-to-save, `⌘↵` save, `Esc` to close
-  dialogs.
+**Under the hood**
+- Menu-bar app. Left-click toggles the window; right-click has Open / Check for Updates / Quit.
+- Stored locally in SQLite (WAL mode). Image and file blobs are written to disk and the
+  database keeps the path, not the bytes. Nothing is uploaded anywhere, apart from fetching
+  link previews from the sites you save.
+- Shortcuts: `/` focuses search, ⌘V pastes and saves, ⌘↵ saves, Esc closes dialogs.
 
 ## Project layout
 
@@ -100,54 +87,55 @@ only releases signed with the project's private key will install.
 stash/
 ├─ src/                       # frontend (no bundler; served directly)
 │  ├─ index.html              # UI markup
-│  ├─ styles.css              # styles
-│  └─ main.js                 # data layer → Tauri commands + clipboard-captured listener
+│  ├─ styles.css              # styles and the three themes
+│  └─ main.js                 # UI logic + calls into the Rust commands
 ├─ src-tauri/
 │  ├─ src/
-│  │  ├─ lib.rs               # app setup, state, plugins, tray, watcher spawn
-│  │  ├─ clipboard_watch.rs   # background polling thread (arboard + sha2)
+│  │  ├─ lib.rs               # app setup, state, plugins, tray, updater, watcher
+│  │  ├─ clipboard_watch.rs   # background clipboard polling thread (arboard + sha2)
 │  │  ├─ db.rs                # SQLite schema + queries (rusqlite, bundled)
-│  │  └─ commands.rs          # #[tauri::command] handlers (incl. fetch_link_preview)
-│  ├─ icons/                  # app + menu-bar (tray.png) icons
+│  │  └─ commands.rs          # the #[tauri::command] handlers
+│  ├─ icons/                  # app icon + menu-bar template (tray.png)
 │  ├─ tauri.conf.json
 │  └─ capabilities/default.json
+├─ scripts/release.sh         # build, sign, and publish a release
 └─ package.json
 ```
 
 ## Build from source
 
-Prerequisites: Rust 1.77+ (rustup), Node 18+, Xcode command line tools.
+You'll need Rust 1.77+ (via rustup), Node 18+, and the Xcode command line tools.
 
-> A Homebrew `rust` may shadow rustup on `PATH` — ensure `~/.cargo/bin` comes first, or
-> prefix commands with `PATH="$HOME/.cargo/bin:$PATH"`.
+If you have a Homebrew `rust` installed, it can shadow rustup on `PATH`. Put `~/.cargo/bin`
+first, or prefix the commands with `PATH="$HOME/.cargo/bin:$PATH"`.
 
 ```bash
 # run in development
-PATH="$HOME/.cargo/bin:$PATH" npm install
-PATH="$HOME/.cargo/bin:$PATH" npm run tauri dev
+npm install
+npm run tauri dev
 
-# build a universal distributable (.app + .dmg under src-tauri/target/.../bundle)
-PATH="$HOME/.cargo/bin:$PATH" npm run tauri build -- --target universal-apple-darwin
+# build a universal .app + .dmg (output under src-tauri/target/.../bundle)
+npm run tauri build -- --target universal-apple-darwin
 ```
 
-### Cutting a release (maintainer)
+## Releasing (maintainer)
 
-To ship an update so installed copies upgrade themselves:
+To ship an update that installed copies pick up on their own:
 
 1. Bump `"version"` in `src-tauri/tauri.conf.json`.
 2. Run `scripts/release.sh "what changed"`.
 
-That builds a signed universal app, generates the updater manifest (`latest.json`), and
-publishes a GitHub Release. Signing uses the private key at `~/.tauri/stash.key` — **keep it
-safe and never commit it**; losing it means you can no longer push updates to existing installs.
+It builds a signed universal app, writes the updater manifest (`latest.json`), and publishes a
+GitHub Release. Signing uses the private key at `~/.tauri/stash.key`. Keep that key safe and
+don't commit it; if you lose it you can't push updates to existing installs.
 
-## Implementation notes
+## How it works
 
-- **rusqlite (bundled SQLite)** is used directly in Rust commands, so all DB logic lives in
-  one place alongside the watcher and blob handling.
-- Clipboard read/write uses **`arboard`** in Rust (watcher + `copy_to_clipboard`); save dialogs
-  and link-opening are Rust commands (`download_item`, `open_url`).
-- Link previews are fetched server-side in Rust (`reqwest` + rustls) to avoid CORS, parsing
-  `og:image` / `og:title` / favicon from the page.
-- The menu-bar icon is a monochrome template (`src-tauri/icons/tray.png`) so macOS tints it
-  for light/dark menu bars.
+- SQLite is accessed directly with rusqlite (bundled), so all the database code sits in one
+  place next to the clipboard watcher and blob handling.
+- Clipboard read/write goes through `arboard` in Rust. Save dialogs and opening links are also
+  Rust commands (`download_item`, `open_url`).
+- Link previews are fetched in Rust with `reqwest` (rustls) to avoid CORS, pulling `og:image`
+  and the title out of the page. Favicons are generated client-side as SVG.
+- The menu-bar icon is a monochrome template PNG, so macOS tints it for light and dark menu
+  bars. Icons are rendered from SVG with `rsvg-convert` to keep the transparency.
