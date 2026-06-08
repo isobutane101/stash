@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stash — clipboard history and notes for your Mac menu bar</title>
+<meta name="description" content="Stash is a macOS menu-bar app that saves what you copy: text, links, images, and files. It also keeps notes and to-do lists. Everything is stored locally in SQLite.">
+<link rel="icon" type="image/png" href="icon.png">
+<meta property="og:title" content="Stash">
+<meta property="og:description" content="A macOS menu-bar app that saves what you copy so you can find it again later. Notes, links, images, files, and to-do lists, all stored on your Mac.">
+<meta property="og:image" content="icon-256.png">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#f4efe6">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Spline+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f4efe6; --paper2:#ece5d8; --card:#fbf8f1; --card-edge:#e3dac9;
+  --ink:#231f1a; --ink2:#5c5447; --ink3:#938876; --ink4:#b6ab97;
+  --rule:#ddd3c1; --rule2:#cabda6;
+  --accent:#9c3a2f; --accent2:#bb5444; --accent-soft:#f0ddd6;
+  --gold:#b8893f;
+  --shadow:0 1px 2px rgba(60,48,30,.05), 0 8px 24px -12px rgba(60,48,30,.18);
+  --shadow-hi:0 2px 4px rgba(60,48,30,.06), 0 18px 40px -16px rgba(60,48,30,.28);
+  --dots:rgba(60,48,30,.035);
+  --serif:'Fraunces',Georgia,serif;
+  --sans:'Spline Sans',system-ui,sans-serif;
+  --mono:'Spline Sans Mono',ui-monospace,monospace;
+}
+html[data-theme="mono"]{
+  --paper:#ffffff; --paper2:#f4f4f5; --card:#ffffff; --card-edge:#e4e4e7;
+  --ink:#0a0a0a; --ink2:#3f3f46; --ink3:#71717a; --ink4:#a1a1aa;
+  --rule:#ececef; --rule2:#d4d4d8;
+  --accent:#0a0a0a; --accent2:#27272a; --accent-soft:#ececec;
+  --gold:#52525b;
+  --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px -12px rgba(0,0,0,.14);
+  --shadow-hi:0 2px 4px rgba(0,0,0,.05), 0 18px 40px -16px rgba(0,0,0,.22);
+  --dots:rgba(0,0,0,.045);
+}
+html[data-theme="party"]{
+  --paper:#eef3ff; --paper2:#e6ecff; --card:#ffffff; --card-edge:#e1e7fb;
+  --ink:#171036; --ink2:#403764; --ink3:#6a6092; --ink4:#9b93c0;
+  --rule:#e7e7fb; --rule2:#d3cef2;
+  --accent:#4d5bff; --accent2:#6f7bff; --accent-soft:#e3e6ff;
+  --gold:#ff9f1c;
+  --shadow:0 2px 5px rgba(77,91,255,.12), 0 12px 30px -12px rgba(77,91,255,.30);
+  --shadow-hi:0 3px 10px rgba(77,91,255,.20), 0 22px 46px -16px rgba(77,91,255,.40);
+  --dots:rgba(77,91,255,.05);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--sans); color:var(--ink); font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; background:var(--paper);
+  background-image:radial-gradient(circle at 1px 1px, var(--dots) 1px, transparent 0);
+  background-size:22px 22px;
+  transition:background-color .5s ease;
+}
+html[data-theme="party"] body{background:#eef3ff;background-image:linear-gradient(135deg,#e8f0ff 0%,#fbe9ff 48%,#fff6e6 100%)}
+/* smooth recolor when the theme flips */
+.swatch,.window,.mcard,.feat,.step,.kbcard,.facts .ck,.btn,.theme-pill,.chipbar,.demo,.demo-card,.tech,.bignum,.titlebar,.mockside,.mhr{
+  transition:background-color .5s ease,border-color .5s ease,color .5s ease,box-shadow .5s ease;
+}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+em{font-style:italic;color:var(--accent);font-weight:400}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:40;backdrop-filter:blur(10px);background:color-mix(in srgb,var(--paper) 78%,transparent);border-bottom:1px solid transparent;transition:border-color .3s}
+.topbar.stuck{border-bottom-color:var(--rule)}
+.topinner{display:flex;align-items:center;justify-content:space-between;padding:15px 0;max-width:1080px;margin:0 auto;padding-left:28px;padding-right:28px}
+.logo{display:flex;align-items:center;gap:11px;font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:-.5px;color:var(--ink)}
+.logo:hover{text-decoration:none}
+.mark{width:13px;height:13px;border-radius:3px;background:var(--accent);transform:rotate(45deg);box-shadow:0 0 0 4px var(--accent-soft);flex:none}
+html[data-theme="party"] .mark{background:linear-gradient(135deg,#4d5bff,#16c79a)}
+.topright{display:flex;align-items:center;gap:22px}
+.toplinks{display:flex;align-items:center;gap:22px;font-size:14.5px}
+.toplinks a{color:var(--ink2)}
+.toplinks a:hover{color:var(--ink)}
+/* theme switch */
+.themeswitch{display:flex;gap:3px;background:var(--paper2);border:1px solid var(--card-edge);border-radius:9px;padding:3px}
+.theme-pill{font-family:var(--mono);font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;padding:6px 10px;border-radius:6px;border:none;background:transparent;color:var(--ink3);cursor:pointer;display:flex;align-items:center;gap:6px;transition:.16s}
+.theme-pill .swatch{width:9px;height:9px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
+.theme-pill:hover{color:var(--ink)}
+.theme-pill.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.sw-paper{background:#9c3a2f}.sw-mono{background:#0a0a0a}.sw-party{background:linear-gradient(135deg,#4d5bff,#ff4d97)}
+
+/* ---------- hero ---------- */
+.hero{padding:78px 0 30px;position:relative;overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:48px;align-items:center}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--ink3);margin-bottom:20px;display:flex;align-items:center;gap:9px}
+.eyebrow .pulse{width:7px;height:7px;border-radius:50%;background:#3fae6a;box-shadow:0 0 0 0 rgba(63,174,106,.5);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,174,106,.45)}70%{box-shadow:0 0 0 8px rgba(63,174,106,0)}100%{box-shadow:0 0 0 0 rgba(63,174,106,0)}}
+.hero h1{font-family:var(--serif);font-weight:500;font-size:clamp(40px,5.6vw,66px);line-height:1.02;letter-spacing:-1.6px}
+.hero .lede{font-size:18px;color:var(--ink2);max-width:46ch;margin:22px 0 0;line-height:1.62}
+.cta{display:flex;align-items:center;gap:14px;margin-top:32px;flex-wrap:wrap}
+.btn{font-family:var(--sans);font-size:15px;font-weight:500;border-radius:11px;padding:13px 24px;border:1px solid var(--card-edge);background:var(--paper);color:var(--ink);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:9px}
+.btn:hover{border-color:var(--ink3);text-decoration:none;transform:translateY(-1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:var(--shadow)}
+.btn.primary:hover{background:var(--accent2);border-color:var(--accent2);box-shadow:var(--shadow-hi)}
+.platnote{font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin-top:18px;letter-spacing:.2px;max-width:42ch;line-height:1.7}
+
+/* ---------- app window mock ---------- */
+.stage{perspective:1600px}
+.window{background:var(--card);border:1px solid var(--card-edge);border-radius:16px;box-shadow:var(--shadow-hi);overflow:hidden;transform-style:preserve-3d;transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .5s}
+.titlebar{display:flex;align-items:center;gap:8px;padding:12px 15px;border-bottom:1px solid var(--rule);background:linear-gradient(180deg,var(--paper2),var(--card))}
+.dot{width:11px;height:11px;border-radius:50%}
+.dot.r{background:#e0685c}.dot.y{background:#e0b14a}.dot.g{background:#71b06a}
+.titlebar .ttl{flex:1;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink4)}
+.mockbody{display:grid;grid-template-columns:178px 1fr;min-height:362px}
+.mockside{background:linear-gradient(180deg,var(--paper2),var(--paper));border-right:1px solid var(--rule);padding:16px 11px}
+.mbrand{font-family:var(--serif);font-weight:600;font-size:18px;display:flex;align-items:center;gap:8px;padding:0 7px 12px;border-bottom:1px solid var(--rule);margin-bottom:10px}
+.mbrand .mark{width:8px;height:8px;box-shadow:0 0 0 3px var(--accent-soft)}
+.mnav{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:8px;color:var(--ink2);font-size:12.5px}
+.mnav .mic{width:14px;text-align:center;color:var(--ink4)}
+.mnav.on{background:var(--card);box-shadow:inset 0 0 0 1px var(--card-edge);color:var(--ink)}
+.mnav.on .mic{color:var(--accent)}
+.mnav .mct{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--ink4)}
+.mockmain{padding:20px 22px;position:relative}
+.mockmain h3{font-family:var(--serif);font-weight:500;font-size:24px;letter-spacing:-.5px}
+.mhr{height:1px;background:linear-gradient(90deg,var(--ink),var(--rule) 24%,var(--rule));opacity:.5;margin:12px 0 16px}
+.mcards{columns:2;column-gap:13px}
+.mcard{break-inside:avoid;margin-bottom:13px;background:var(--card);border:1px solid var(--card-edge);border-radius:11px;padding:13px;box-shadow:var(--shadow);animation:cardin .5s both}
+.mcard.pin{border-color:var(--gold)}
+.mcard .mtype{font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:#fff;background:rgba(35,31,26,.82);padding:2px 7px;border-radius:5px;display:inline-block;margin-bottom:9px}
+html[data-theme="party"] .mcard .mtype{background:#4d5bff}
+.mcard p{font-size:12.5px;color:var(--ink);line-height:1.5}
+.mcard.note p{font-family:var(--serif);font-size:13.5px}
+.mcard a.ml{color:var(--accent);font-size:12.5px;font-weight:500;word-break:break-all}
+.mcard .mhost{font-family:var(--mono);font-size:9.5px;color:var(--ink3);margin-top:6px}
+.mcard .mtag{font-family:var(--mono);font-size:9px;color:var(--accent);background:var(--accent-soft);padding:1px 7px;border-radius:10px;display:inline-block;margin-top:9px}
+.mimg{height:62px;border-radius:7px;background:linear-gradient(135deg,#cdbfa6,#b39f80);margin-bottom:9px}
+html[data-theme="mono"] .mimg{background:linear-gradient(135deg,#d4d4d8,#a1a1aa)}
+html[data-theme="party"] .mimg{background:linear-gradient(135deg,#9b5de5,#ff4d97)}
+@keyframes cardin{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+
+/* floating "copied" chip */
+.copychip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:11px;padding:9px 15px;border-radius:30px;box-shadow:0 18px 40px -10px rgba(0,0,0,.45);display:flex;align-items:center;gap:9px;white-space:nowrap;opacity:0;pointer-events:none}
+.copychip .ck{width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.copychip.go{animation:chip 2.4s cubic-bezier(.2,.7,.2,1)}
+@keyframes chip{0%{opacity:0;transform:translate(-50%,18px) scale(.9)}14%{opacity:1;transform:translate(-50%,-50%) scale(1)}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-120px) scale(.85)}}
+
+/* ---------- ticker ---------- */
+.ticker{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);background:var(--paper2);overflow:hidden;margin-top:48px}
+.ticker .track{display:flex;gap:46px;white-space:nowrap;padding:16px 0;animation:scroll 34s linear infinite;width:max-content}
+.ticker:hover .track{animation-play-state:paused}
+.ticker .item{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--ink3);display:flex;align-items:center;gap:46px}
+.ticker .item::after{content:"\2666";font-style:normal;font-size:9px;color:var(--accent);opacity:.6}
+@keyframes scroll{to{transform:translateX(-50%)}}
+
+/* ---------- sections ---------- */
+section{padding:80px 0}
+.sechead{margin-bottom:46px;max-width:60ch}
+.sechead.center{text-align:center;margin-left:auto;margin-right:auto}
+.sechead .eyebrow{margin-bottom:14px;justify-content:flex-start}
+.sechead.center .eyebrow{justify-content:center}
+.sechead h2{font-family:var(--serif);font-weight:500;font-size:clamp(30px,4.4vw,42px);letter-spacing:-.8px;line-height:1.1}
+.sechead p{color:var(--ink2);font-size:17px;margin-top:15px}
+
+/* reveal on scroll */
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- search demo ---------- */
+.demo{background:var(--card);border:1px solid var(--card-edge);border-radius:18px;box-shadow:var(--shadow-hi);padding:26px 26px 30px;max-width:760px;margin:0 auto}
+.demo-search{position:relative;border-bottom:1.5px solid var(--rule);margin-bottom:6px}
+.demo-search .mag{position:absolute;left:2px;top:50%;transform:translateY(-50%);color:var(--ink3);font-size:17px}
+.demo-search input{width:100%;background:transparent;border:none;font-family:var(--serif);font-size:21px;color:var(--ink);padding:10px 70px 12px 30px}
+.demo-search input::placeholder{color:var(--ink4);font-style:italic}
+.demo-search input:focus{outline:none}
+.demo-search .slash{position:absolute;right:0;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10px;color:var(--ink4);border:1px solid var(--card-edge);border-radius:6px;padding:3px 7px}
+.demo-meta{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.4px;margin:14px 0 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.demo-filters{display:flex;gap:6px;flex-wrap:wrap}
+.dfilter{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.6px;padding:5px 11px;border-radius:30px;border:1px solid var(--card-edge);background:var(--paper);color:var(--ink2);cursor:pointer;transition:.14s}
+.dfilter:hover{border-color:var(--rule2)}
+.dfilter.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.demo-grid{columns:2;column-gap:14px}
+.demo-card{break-inside:avoid;margin-bottom:14px;background:var(--paper);border:1px solid var(--card-edge);border-radius:12px;padding:14px 15px;transition:opacity .2s,transform .2s,border-color .14s}
+.demo-card:hover{border-color:var(--rule2)}
+.demo-card .dt{font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink3);margin-bottom:8px;display:inline-block}
+.demo-card .dtitle{font-size:14px;color:var(--ink);line-height:1.45}
+.demo-card.note .dtitle{font-family:var(--serif);font-size:15px}
+.demo-card .dsub{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:7px}
+.demo-card .dtag{color:var(--accent)}
+mark{background:var(--accent-soft);color:var(--accent);border-radius:3px;padding:0 2px}
+.demo-empty{text-align:center;padding:34px 10px;color:var(--ink3);font-family:var(--serif);font-style:italic;font-size:18px;display:none}
+
+/* ---------- features ---------- */
+.features{display:grid;grid-template-columns:repeat(6,1fr);gap:18px}
+.feat{background:var(--card);border:1px solid var(--card-edge);border-radius:14px;padding:26px 24px;box-shadow:var(--shadow);transition:.18s;position:relative;overflow:hidden}
+.feat:hover{box-shadow:var(--shadow-hi);border-color:var(--rule2);transform:translateY(-3px)}
+.feat.big{grid-column:span 4}.feat.med{grid-column:span 3}.feat.sm{grid-column:span 2}
+.feat .ficon{width:42px;height:42px;border-radius:11px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px}
+.feat h3{font-family:var(--serif);font-weight:500;font-size:20px;letter-spacing:-.3px;margin-bottom:8px}
+.feat p{color:var(--ink2);font-size:14.5px;line-height:1.62}
+.feat .demo-line{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:13px;padding-top:13px;border-top:1px solid var(--rule);display:flex;gap:8px;flex-wrap:wrap}
+.feat .demo-line .k{background:var(--paper2);border:1px solid var(--card-edge);border-radius:5px;padding:2px 7px;color:var(--ink2)}
+
+/* ---------- themes showcase ---------- */
+.themecards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.tcard{border:1px solid var(--card-edge);border-radius:15px;overflow:hidden;cursor:pointer;box-shadow:var(--shadow);transition:.18s;background:var(--card)}
+.tcard:hover{transform:translateY(-3px);box-shadow:var(--shadow-hi)}
+.tcard .tprev{height:128px;padding:16px;display:flex;flex-direction:column;gap:8px;justify-content:center;position:relative}
+.tprev .tmini{border-radius:7px;padding:8px 10px;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.tcard .tinfo{padding:15px 17px;border-top:1px solid var(--card-edge);display:flex;align-items:center;justify-content:space-between}
+.tcard .tinfo b{font-family:var(--serif);font-weight:500;font-size:17px}
+.tcard .tinfo span{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink3)}
+/* paper preview */
+.tp-paper{background:#f4efe6;background-image:radial-gradient(circle at 1px 1px,rgba(60,48,30,.05) 1px,transparent 0);background-size:14px 14px}
+.tp-paper .tmini{background:#fbf8f1;border:1px solid #e3dac9;color:#5c5447}
+.tp-paper .a{color:#9c3a2f;font-family:var(--serif);font-style:italic}
+.tp-mono{background:#fff;background-image:radial-gradient(circle at 1px 1px,rgba(0,0,0,.05) 1px,transparent 0);background-size:14px 14px}
+.tp-mono .tmini{background:#fff;border:1px solid #e4e4e7;color:#3f3f46}
+.tp-mono .a{color:#0a0a0a;font-weight:600}
+.tp-party{background:linear-gradient(135deg,#e8f0ff,#fbe9ff 50%,#fff6e6)}
+.tp-party .tmini{background:#fff;border:1px solid #e1e7fb;color:#403764}
+.tp-party .a{color:#ff4d97;font-weight:600}
+.tcard .nowon{font-family:var(--mono);font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);opacity:0;transition:.2s}
+.tcard.active .nowon{opacity:1}
+.tcard.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft),var(--shadow-hi)}
+
+/* ---------- privacy band ---------- */
+.band{background:linear-gradient(180deg,var(--paper2),var(--paper));border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+html[data-theme="party"] .band{background:linear-gradient(180deg,rgba(255,255,255,.5),transparent)}
+.privacy{display:grid;grid-template-columns:1.05fr 1fr;gap:54px;align-items:center}
+.privacy h2{font-family:var(--serif);font-weight:500;font-size:clamp(28px,4vw,38px);letter-spacing:-.7px;line-height:1.12}
+.privacy p{color:var(--ink2);font-size:16px;margin-top:18px}
+.facts{list-style:none;display:flex;flex-direction:column;gap:15px}
+.facts li{display:flex;gap:13px;align-items:flex-start;font-size:14.5px;color:var(--ink2)}
+.facts .ck{flex:none;width:25px;height:25px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px}
+.facts li b{color:var(--ink);font-weight:600}
+
+/* ---------- how it works (tech) ---------- */
+.techgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.tech{background:var(--card);border:1px solid var(--card-edge);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow);display:flex;gap:16px;align-items:flex-start}
+.tech .tnum{font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid var(--accent-soft);background:var(--accent-soft);border-radius:7px;padding:5px 8px;flex:none}
+.tech h3{font-family:var(--serif);font-weight:500;font-size:18px;margin-bottom:6px}
+.tech p{color:var(--ink2);font-size:14px;line-height:1.6}
+.tech code{font-family:var(--mono);font-size:12.5px;background:var(--paper2);border:1px solid var(--card-edge);border-radius:5px;padding:1px 6px;color:var(--ink2)}
+
+/* ---------- stats ---------- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;text-align:center;margin-top:8px}
+.stat{padding:8px}
+.bignum{font-family:var(--serif);font-weight:500;font-size:clamp(34px,5vw,52px);line-height:1;letter-spacing:-1px;color:var(--accent)}
+.stat .lbl{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--ink3);margin-top:12px}
+
+/* ---------- install ---------- */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;counter-reset:s}
+.step{background:var(--card);border:1px solid var(--card-edge);border-radius:14px;padding:26px 24px;box-shadow:var(--shadow)}
+.step .num{counter-increment:s;font-family:var(--serif);font-style:italic;font-size:30px;color:var(--accent);line-height:1;margin-bottom:12px}
+.step .num::before{content:counter(s)}
+.step h3{font-family:var(--serif);font-weight:500;font-size:18px;margin-bottom:7px}
+.step p{color:var(--ink2);font-size:14px;line-height:1.6}
+.codeline{font-family:var(--mono);font-size:12px;background:var(--ink);border-radius:8px;padding:11px 13px;color:#f0e9da;margin-top:12px;overflow-x:auto;white-space:nowrap;display:flex;align-items:center;gap:9px}
+.codeline .pr{color:var(--gold);opacity:.8}
+.codeline .cp{margin-left:auto;background:none;border:none;color:#bcae97;font-family:var(--mono);font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:.6px}
+.codeline .cp:hover{color:#fff}
+
+.kbds{display:flex;flex-wrap:wrap;gap:13px;justify-content:center}
+.kbcard{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--card-edge);border-radius:11px;padding:12px 16px;box-shadow:var(--shadow)}
+.kbd{font-family:var(--mono);font-size:12px;background:var(--paper2);border:1px solid var(--card-edge);border-bottom-width:2px;border-radius:6px;padding:3px 9px;color:var(--ink);font-weight:500;transition:transform .08s}
+.kbcard span{font-size:13.5px;color:var(--ink2)}
+
+/* ---------- final ---------- */
+.final{text-align:center;padding:96px 0}
+.final h2{font-family:var(--serif);font-weight:500;font-size:clamp(34px,5.4vw,58px);letter-spacing:-1.2px;line-height:1.06}
+.final p{color:var(--ink2);font-size:17px;margin:18px auto 32px;max-width:44ch}
+
+footer{border-top:1px solid var(--rule);padding:34px 0}
+.foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;color:var(--ink3);font-size:13.5px}
+.foot .logo{font-size:19px;color:var(--ink2)}
+.foot .logo .mark{width:10px;height:10px;box-shadow:0 0 0 3px var(--accent-soft)}
+.foot nav{display:flex;gap:22px}
+.foot nav a{color:var(--ink3)}
+.foot nav a:hover{color:var(--ink)}
+
+@media (max-width:900px){
+  .hero-grid{grid-template-columns:1fr;gap:40px}
+  .stage{order:2}
+  .features{grid-template-columns:repeat(2,1fr)}
+  .feat.big,.feat.med,.feat.sm{grid-column:span 1}
+  .techgrid,.privacy{grid-template-columns:1fr}
+  .privacy{gap:32px}
+  .stats{grid-template-columns:repeat(2,1fr);gap:28px 18px}
+}
+@media (max-width:620px){
+  .toplinks,.platnote br{display:none}
+  .themeswitch{transform:scale(.92)}
+  .features,.themecards,.steps{grid-template-columns:1fr}
+  .mcards,.demo-grid{columns:1}
+  .mockside{display:none}
+  section{padding:58px 0}
+  .theme-pill span.tlabel{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.1s!important;scroll-behavior:auto}
+  .ticker .track{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+  <div class="topinner">
+    <a class="logo" href="#"><span class="mark"></span>Stash</a>
+    <div class="topright">
+      <nav class="toplinks">
+        <a href="#try">Try it</a>
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="https://github.com/isobutane101/stash">GitHub</a>
+      </nav>
+      <div class="themeswitch" id="themeswitch" role="group" aria-label="Theme">
+        <button class="theme-pill on" data-theme="paper"><span class="swatch sw-paper"></span><span class="tlabel">Paper</span></button>
+        <button class="theme-pill" data-theme="mono"><span class="swatch sw-mono"></span><span class="tlabel">Mono</span></button>
+        <button class="theme-pill" data-theme="party"><span class="swatch sw-party"></span><span class="tlabel">Party</span></button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero wrap">
+    <div class="hero-grid">
+      <div class="herotext">
+        <div class="eyebrow"><span class="pulse"></span>Sitting in your menu bar right now</div>
+        <h1>Stash keeps<br>what you <em>copy</em>.</h1>
+        <p class="lede">It quietly saves text, links, and images as you copy them, so you can dig them back up later. You can also write notes, drop in files, and keep to&#8209;do lists. All of it stays on your Mac.</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/isobutane101/stash/releases/latest">&#8595;&nbsp; Download for macOS</a>
+          <a class="btn" href="https://github.com/isobutane101/stash">View source</a>
+        </div>
+        <div class="platnote">Universal binary, so it runs on Apple Silicon and Intel alike.<br>Free, open source, and not signed with a paid developer account.</div>
+      </div>
+
+      <div class="stage">
+        <div class="window" id="appwin">
+          <div class="titlebar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span class="ttl">Stash</span>
+          </div>
+          <div class="mockbody">
+            <div class="mockside">
+              <div class="mbrand"><span class="mark"></span>Stash</div>
+              <div class="mnav on"><span class="mic">&#10070;</span>All items<span class="mct">128</span></div>
+              <div class="mnav"><span class="mic">&#9733;</span>Pinned<span class="mct">6</span></div>
+              <div class="mnav"><span class="mic">&para;</span>Notes<span class="mct">31</span></div>
+              <div class="mnav"><span class="mic">&#8599;</span>Links<span class="mct">52</span></div>
+              <div class="mnav"><span class="mic">&#9635;</span>Images<span class="mct">24</span></div>
+              <div class="mnav"><span class="mic">&#9113;</span>Files<span class="mct">15</span></div>
+            </div>
+            <div class="mockmain">
+              <h3>All <em>items</em></h3>
+              <div class="mhr"></div>
+              <div class="copychip" id="copychip"><span class="ck"></span><span id="copytext">Saved to Stash</span></div>
+              <div class="mcards">
+                <div class="mcard pin note" style="animation-delay:.05s">
+                  <span class="mtype">Note</span>
+                  <p>ship the universal build, then write the release notes</p>
+                  <span class="mtag">#todo</span>
+                </div>
+                <div class="mcard" style="animation-delay:.12s">
+                  <span class="mtype">Link</span>
+                  <a class="ml">tauri.app/v2/guides</a>
+                  <div class="mhost">tauri.app</div>
+                </div>
+                <div class="mcard" style="animation-delay:.19s">
+                  <span class="mtype">Image</span>
+                  <div class="mimg"></div>
+                  <div class="mhost">screenshot.png</div>
+                </div>
+                <div class="mcard note" style="animation-delay:.26s">
+                  <span class="mtype">Note</span>
+                  <p>remember to rotate the API key on Friday</p>
+                </div>
+                <div class="mcard" style="animation-delay:.33s">
+                  <span class="mtype">File</span>
+                  <p>budget&#8209;q3.pdf</p>
+                  <div class="mhost">240 KB &middot; PDF</div>
+                </div>
+                <div class="mcard" style="animation-delay:.4s">
+                  <span class="mtype">Link</span>
+                  <a class="ml">github.com/isobutane101</a>
+                  <div class="mhost">github.com &middot; <span style="color:var(--accent)">#work</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="track">
+      <span class="item">that one link</span><span class="item">a screenshot</span><span class="item">code you&rsquo;ll need again</span><span class="item">a tracking number</span><span class="item">the wifi password</span><span class="item">a quote</span><span class="item">an address</span><span class="item">a half&#8209;finished idea</span>
+      <span class="item">that one link</span><span class="item">a screenshot</span><span class="item">code you&rsquo;ll need again</span><span class="item">a tracking number</span><span class="item">the wifi password</span><span class="item">a quote</span><span class="item">an address</span><span class="item">a half&#8209;finished idea</span>
+    </div>
+  </div>
+
+  <!-- TRY IT: live search demo -->
+  <section id="try" class="wrap">
+    <div class="sechead center reveal">
+      <div class="eyebrow">Try it right here</div>
+      <h2>Search runs over <em>everything</em> at once.</h2>
+      <p>Text, link URLs, file names, tags, folder names. Type below to filter this little stash, the same way the app searches your whole collection.</p>
+    </div>
+    <div class="demo reveal">
+      <div class="demo-search">
+        <span class="mag">&#9906;</span>
+        <input id="demoInput" type="text" placeholder="Try &ldquo;wifi&rdquo;, &ldquo;pdf&rdquo;, or &ldquo;#work&rdquo;&hellip;" autocomplete="off" spellcheck="false">
+        <span class="slash">press /</span>
+      </div>
+      <div class="demo-meta">
+        <span id="demoCount">9 items</span>
+        <span class="demo-filters" id="demoFilters">
+          <button class="dfilter on" data-f="all">All</button>
+          <button class="dfilter" data-f="note">Notes</button>
+          <button class="dfilter" data-f="link">Links</button>
+          <button class="dfilter" data-f="image">Images</button>
+          <button class="dfilter" data-f="file">Files</button>
+        </span>
+      </div>
+      <div class="demo-grid" id="demoGrid"></div>
+      <div class="demo-empty" id="demoEmpty">Nothing matches that. Try something else.</div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features" class="wrap">
+    <div class="sechead reveal">
+      <div class="eyebrow">Features</div>
+      <h2>What it <em>does</em></h2>
+      <p>Stash watches the clipboard and saves things on its own. The rest is there to help you keep it all in order.</p>
+    </div>
+    <div class="features">
+      <div class="feat big reveal">
+        <div class="ficon">&#9635;</div>
+        <h3>Saves things on its own</h3>
+        <p>It watches the clipboard and saves new text, links, and images as they show up. It hashes what it saves so you don&rsquo;t end up with duplicates, and it ignores its own copies. You can also paste, type a note, or just drag files straight in.</p>
+        <div class="demo-line"><span class="k">&#8984; V</span> paste &amp; save <span class="k">&#8984; &#8629;</span> save a note</div>
+      </div>
+      <div class="feat sm reveal">
+        <div class="ficon">&#9783;</div>
+        <h3>Folders and tags</h3>
+        <p>Drag a card onto a folder to move it there. Add as many tags as you want, and pin the things you keep reaching for.</p>
+      </div>
+      <div class="feat sm reveal">
+        <div class="ficon">&#8599;</div>
+        <h3>Links get a preview</h3>
+        <p>When you&rsquo;re online, links pull in a thumbnail and the page title. Offline, every link still gets a little generated favicon.</p>
+      </div>
+      <div class="feat med reveal">
+        <div class="ficon">&#10003;</div>
+        <h3>To&#8209;do lists, properly</h3>
+        <p>Make as many as you like. A task can have a due date, notes, and subtasks. Overdue ones turn red, and unfinished tasks sort to the top by whatever&rsquo;s due soonest. &ldquo;Clear done&rdquo; sweeps up the rest.</p>
+      </div>
+      <div class="feat med reveal">
+        <div class="ficon">&#9906;</div>
+        <h3>Find anything fast</h3>
+        <p>One search runs across the text, link URLs, file names, tags, and folder names, over the whole collection rather than just what&rsquo;s on screen. Sort by newest or oldest; pinned stays on top.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- THEMES -->
+  <section class="wrap">
+    <div class="sechead center reveal">
+      <div class="eyebrow">Three themes &middot; this page has them too</div>
+      <h2>Pick a look. <em>Click one</em> and watch.</h2>
+      <p>The same three themes that ship in the app. Choosing one here flips this whole page, just like it flips the app.</p>
+    </div>
+    <div class="themecards reveal" id="themecards">
+      <div class="tcard" data-theme="paper">
+        <div class="tprev tp-paper">
+          <div class="tmini">A warm sheet of paper.</div>
+          <div class="tmini a">All <em>items</em></div>
+        </div>
+        <div class="tinfo"><b>Paper</b><span class="nowon">&#9679; now on</span><span>warm default</span></div>
+      </div>
+      <div class="tcard" data-theme="mono">
+        <div class="tprev tp-mono">
+          <div class="tmini">Clean black and white.</div>
+          <div class="tmini a">All items</div>
+        </div>
+        <div class="tinfo"><b>Mono</b><span class="nowon">&#9679; now on</span><span>black &amp; white</span></div>
+      </div>
+      <div class="tcard" data-theme="party">
+        <div class="tprev tp-party">
+          <div class="tmini">Bright and a little loud.</div>
+          <div class="tmini a">All items</div>
+        </div>
+        <div class="tinfo"><b>Party</b><span class="nowon">&#9679; now on</span><span>full color</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRIVACY -->
+  <div class="band">
+    <section class="wrap">
+      <div class="privacy">
+        <div class="reveal">
+          <div class="eyebrow">Where your stuff lives</div>
+          <h2>It all stays on <em>your Mac</em>.</h2>
+          <p>Everything Stash saves goes into a SQLite database on your computer. Images and files are written to disk, and the database just keeps the path to them, not the bytes. The only time it touches the network is to fetch link previews from the sites you save.</p>
+        </div>
+        <ul class="facts reveal">
+          <li><span class="ck">&#10003;</span><div>A local <b>SQLite</b> database holds the whole collection. No account, no sign&#8209;in, no cloud.</div></li>
+          <li><span class="ck">&#10003;</span><div>Nothing gets sent anywhere, apart from those link&#8209;preview fetches.</div></li>
+          <li><span class="ck">&#10003;</span><div>It updates itself: checks for a newer version, verifies the signature against a key built into the app, and installs it, so you don&rsquo;t re&#8209;download the dmg.</div></li>
+          <li><span class="ck">&#10003;</span><div>The whole thing is <b>open source</b>. Rust backend, plain HTML/CSS/JS frontend, all in one repo.</div></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <!-- STATS -->
+  <section class="wrap" style="padding-bottom:40px">
+    <div class="stats reveal">
+      <div class="stat"><div class="bignum" data-to="3">0</div><div class="lbl">Themes</div></div>
+      <div class="stat"><div class="bignum" data-to="6">0</div><div class="lbl">Item types</div></div>
+      <div class="stat"><div class="bignum" data-to="0">0</div><div class="lbl">Servers it phones</div></div>
+      <div class="stat"><div class="bignum" data-suffix="%" data-to="100">0</div><div class="lbl">On your machine</div></div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how" class="wrap">
+    <div class="sechead reveal">
+      <div class="eyebrow">Under the hood</div>
+      <h2>How it actually <em>works</em></h2>
+      <p>Built with Tauri v2: a Rust backend and a plain HTML/CSS/JS frontend with no build step.</p>
+    </div>
+    <div class="techgrid">
+      <div class="tech reveal"><div class="tnum">01</div><div>
+        <h3>The clipboard watcher</h3>
+        <p>A background thread polls the clipboard with <code>arboard</code> and hashes new contents with <code>sha2</code>, so the same thing never gets saved twice and Stash skips its own copies.</p>
+      </div></div>
+      <div class="tech reveal"><div class="tnum">02</div><div>
+        <h3>Local storage</h3>
+        <p>Everything goes through <code>rusqlite</code> (bundled) into a SQLite database in WAL mode. Image and file blobs live on disk; the database keeps the path, not the bytes.</p>
+      </div></div>
+      <div class="tech reveal"><div class="tnum">03</div><div>
+        <h3>Link previews</h3>
+        <p>Previews are fetched in Rust with <code>reqwest</code> over rustls to dodge CORS, pulling the <code>og:image</code> and page title. Favicons are generated client&#8209;side as SVG.</p>
+      </div></div>
+      <div class="tech reveal"><div class="tnum">04</div><div>
+        <h3>Signed updates</h3>
+        <p>On launch it checks for a newer release, downloads it, verifies the signature against a public key built into the app, installs it, and restarts. No re&#8209;downloading the dmg.</p>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install" class="wrap">
+    <div class="sechead center reveal">
+      <div class="eyebrow">Installing</div>
+      <h2>It takes about <em>a minute</em>.</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="num"></div>
+        <h3>Download the dmg</h3>
+        <p>Grab Stash_universal.dmg from the latest release, open it, and drag Stash into your Applications folder.</p>
+      </div>
+      <div class="step reveal">
+        <div class="num"></div>
+        <h3>Open it the first time</h3>
+        <p>Right&#8209;click Stash and choose Open, then Open again. macOS warns you here because the app isn&rsquo;t signed with a paid developer account.</p>
+      </div>
+      <div class="step reveal">
+        <div class="num"></div>
+        <h3>If it says &ldquo;damaged&rdquo;</h3>
+        <p>Run this in Terminal once, then open it again:</p>
+        <div class="codeline"><span class="pr">$</span><span id="xattr">xattr -cr /Applications/Stash.app</span><button class="cp" data-copy="xattr -cr /Applications/Stash.app">Copy</button></div>
+      </div>
+    </div>
+
+    <div class="sechead center reveal" style="margin:62px auto 28px">
+      <h2 style="font-size:26px">A few <em>shortcuts</em></h2>
+    </div>
+    <div class="kbds reveal">
+      <div class="kbcard"><span class="kbd">/</span><span>Focus search</span></div>
+      <div class="kbcard"><span class="kbd">&#8984; V</span><span>Paste &amp; save</span></div>
+      <div class="kbcard"><span class="kbd">&#8984; &#8629;</span><span>Save</span></div>
+      <div class="kbcard"><span class="kbd">Esc</span><span>Close dialogs</span></div>
+    </div>
+  </section>
+
+  <!-- FINAL -->
+  <section class="final wrap">
+    <h2 class="reveal">Give it a <em>try</em>.</h2>
+    <p class="reveal">It&rsquo;s free and open source, and it stays on your Mac. Download it and see if it sticks.</p>
+    <div class="cta reveal" style="justify-content:center">
+      <a class="btn primary" href="https://github.com/isobutane101/stash/releases/latest">&#8595;&nbsp; Download for macOS</a>
+      <a class="btn" href="https://github.com/isobutane101/stash">View on GitHub</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <a class="logo" href="#"><span class="mark"></span>Stash</a>
+    <nav>
+      <a href="https://github.com/isobutane101/stash">Source</a>
+      <a href="https://github.com/isobutane101/stash/releases/latest">Releases</a>
+      <a href="https://github.com/isobutane101/stash#readme">Docs</a>
+    </nav>
+    <div>Built with Tauri. Runs entirely on your Mac.</div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var root = document.documentElement;
+
+  /* ---- theme switching (top bar + theme cards, persisted) ---- */
+  var pills = document.querySelectorAll('.theme-pill');
+  var tcards = document.querySelectorAll('.tcard');
+  function setTheme(name){
+    if(name === 'paper') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', name);
+    pills.forEach(function(p){ p.classList.toggle('on', p.dataset.theme === name); });
+    tcards.forEach(function(c){ c.classList.toggle('active', c.dataset.theme === name); });
+    var mt = document.querySelector('meta[name=theme-color]');
+    if(mt) mt.setAttribute('content', name==='mono'?'#ffffff':name==='party'?'#eef3ff':'#f4efe6');
+    try{ localStorage.setItem('stash-theme', name); }catch(e){}
+  }
+  pills.forEach(function(p){ p.addEventListener('click', function(){ setTheme(p.dataset.theme); }); });
+  tcards.forEach(function(c){ c.addEventListener('click', function(){ setTheme(c.dataset.theme); }); });
+  var saved; try{ saved = localStorage.getItem('stash-theme'); }catch(e){}
+  setTheme(saved || 'paper');
+
+  /* ---- sticky top bar shadow ---- */
+  var bar = document.getElementById('topbar');
+  window.addEventListener('scroll', function(){ bar.classList.toggle('stuck', window.scrollY > 8); }, {passive:true});
+
+  /* ---- reveal on scroll ---- */
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, {threshold:.12, rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+
+  /* ---- count-up stats ---- */
+  var seen = false;
+  var statIO = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting && !seen){
+        seen = true;
+        document.querySelectorAll('.bignum').forEach(function(n){
+          var to = +n.dataset.to, suf = n.dataset.suffix || '', step = 0, frames = 36;
+          var t = setInterval(function(){
+            step++; var v = Math.round(to * (1 - Math.pow(1 - step/frames, 3)));
+            n.textContent = v + suf;
+            if(step >= frames){ n.textContent = to + suf; clearInterval(t); }
+          }, 22);
+        });
+      }
+    });
+  }, {threshold:.4});
+  var statsEl = document.querySelector('.stats'); if(statsEl) statIO.observe(statsEl);
+
+  /* ---- subtle tilt on the app window ---- */
+  var stage = document.querySelector('.stage'), win = document.getElementById('appwin');
+  if(stage && win && window.matchMedia('(pointer:fine)').matches){
+    stage.addEventListener('mousemove', function(ev){
+      var r = stage.getBoundingClientRect();
+      var px = (ev.clientX - r.left)/r.width - .5, py = (ev.clientY - r.top)/r.height - .5;
+      win.style.transform = 'rotateY(' + (px*7) + 'deg) rotateX(' + (-py*7) + 'deg) translateZ(0)';
+    });
+    stage.addEventListener('mouseleave', function(){ win.style.transform = ''; });
+  }
+
+  /* ---- animated "copied -> saved" chip in the hero ---- */
+  var chip = document.getElementById('copychip'), ctext = document.getElementById('copytext');
+  var snippets = ['Link saved', 'Note saved', 'Image saved', 'File saved', 'Snippet saved'];
+  if(chip && !window.matchMedia('(prefers-reduced-motion:reduce)').matches){
+    var ci = 0;
+    setInterval(function(){
+      ctext.textContent = snippets[ci % snippets.length]; ci++;
+      chip.classList.remove('go'); void chip.offsetWidth; chip.classList.add('go');
+    }, 3600);
+  }
+
+  /* ---- copy button on the xattr line ---- */
+  document.querySelectorAll('.cp').forEach(function(b){
+    b.addEventListener('click', function(){
+      navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy);
+      var o = b.textContent; b.textContent = 'Copied'; setTimeout(function(){ b.textContent = o; }, 1400);
+    });
+  });
+
+  /* ---- live search demo ---- */
+  var DATA = [
+    {type:'note',  title:'ship the universal build, then write the release notes', sub:'#todo', tags:'todo release build'},
+    {type:'link',  title:'tauri.app/v2/guides', sub:'tauri.app', tags:'tauri docs rust'},
+    {type:'image', title:'screenshot.png', sub:'1.2 MB · PNG', tags:'screenshot image'},
+    {type:'note',  title:'remember to rotate the API key on Friday', sub:'security', tags:'security key reminder'},
+    {type:'file',  title:'budget-q3.pdf', sub:'240 KB · PDF · #work', tags:'work pdf budget finance'},
+    {type:'link',  title:'github.com/isobutane101/stash', sub:'github.com · #work', tags:'work github code repo'},
+    {type:'note',  title:'wifi password: paper-lantern-42', sub:'home', tags:'wifi password home network'},
+    {type:'file',  title:'invoice-march.pdf', sub:'88 KB · PDF', tags:'pdf invoice finance'},
+    {type:'link',  title:'fonts.google.com/specimen/Fraunces', sub:'fonts.google.com · #design', tags:'design fonts type'}
+  ];
+  var LABEL = {note:'Note', link:'Link', image:'Image', file:'File'};
+  var grid = document.getElementById('demoGrid'), input = document.getElementById('demoInput'),
+      count = document.getElementById('demoCount'), empty = document.getElementById('demoEmpty');
+  var activeFilter = 'all';
+  function esc(s){ return s.replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function hl(s, q){ if(!q) return esc(s); var i = s.toLowerCase().indexOf(q.toLowerCase()); if(i<0) return esc(s);
+    return esc(s.slice(0,i)) + '<mark>' + esc(s.slice(i,i+q.length)) + '</mark>' + esc(s.slice(i+q.length)); }
+  function render(){
+    var q = input.value.trim();
+    var lc = q.toLowerCase();
+    var rows = DATA.filter(function(d){
+      if(activeFilter !== 'all' && d.type !== activeFilter) return false;
+      if(!q) return true;
+      return (d.title + ' ' + d.sub + ' ' + d.tags + ' ' + LABEL[d.type]).toLowerCase().indexOf(lc) >= 0;
+    });
+    grid.innerHTML = rows.map(function(d){
+      return '<div class="demo-card ' + d.type + '"><span class="dt">' + LABEL[d.type] + '</span>' +
+        '<div class="dtitle">' + hl(d.title, q) + '</div>' +
+        '<div class="dsub">' + hl(d.sub, q) + '</div></div>';
+    }).join('');
+    count.textContent = rows.length + (rows.length === 1 ? ' item' : ' items');
+    empty.style.display = rows.length ? 'none' : 'block';
+  }
+  input.addEventListener('input', render);
+  document.querySelectorAll('.dfilter').forEach(function(b){
+    b.addEventListener('click', function(){
+      activeFilter = b.dataset.f;
+      document.querySelectorAll('.dfilter').forEach(function(x){ x.classList.toggle('on', x === b); });
+      render();
+    });
+  });
+  render();
+
+  /* ---- "/" focuses the demo search, like the app ---- */
+  document.addEventListener('keydown', function(e){
+    if(e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA'){
+      e.preventDefault();
+      document.getElementById('try').scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(function(){ input.focus(); }, 380);
+    }
+  });
+})();
+</script>
+</body>
+</html>
